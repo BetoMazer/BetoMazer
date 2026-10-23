@@ -36,14 +36,17 @@ TERCEIROS = {
     2026: {70: "cury", 14: "renan", 55: "caiado", 30: "zema"},
 }
 
-# Prior para a fração dos eleitores de cada terceiro (que escolhem um finalista)
-# que vai para o candidato A no 2º turno. Para 2026 reflete o perfil ideológico
-# dos candidatos e o padrão de 2022 (terceiros ~70/30 para Bolsonaro); o modelo
-# ao vivo corrige isso com os dados apurados. "outros" = demais candidatos.
+# Fração dos eleitores de cada terceiro (que escolhem um finalista) que vai
+# para o candidato A no 2º turno. É o ponto de partida do modelo; durante a
+# apuração o desvio em relação a essa divisão é aprendido com os votos
+# apurados. Os valores de 2026 são a premissa conservadora definida pelo
+# usuário (Cury 50/50, Renan 50/50, Caiado 70/30, Zema 80/20) e podem ser
+# alterados no painel ou com --transf. "outros" = demais candidatos (UP, PSTU,
+# PCB, PCO, DC, Democrata).
 PRIOR_TRANSFERENCIA = {
     2018: {"ciro": 0.5, "alckmin": 0.5, "amoedo": 0.5, "outros": 0.5},
     2022: {"tebet": 0.5, "ciro": 0.5, "outros": 0.5},
-    2026: {"cury": 0.55, "renan": 0.75, "caiado": 0.75, "zema": 0.80, "outros": 0.35},
+    2026: {"cury": 0.50, "renan": 0.50, "caiado": 0.70, "zema": 0.80, "outros": 0.35},
 }
 
 REGIAO = {

@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeção 2º turno 2026</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --A: #2a78d6; --A-soft: rgba(42,120,214,0.16); --B: #e34948; --B-soft: rgba(227,73,72,0.16);
+  --neutral: #898781; --ok: #006300; --crit: #d03b3b; --warn-bg: #fff4d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --A: #3987e5; --A-soft: rgba(57,135,229,0.22); --B: #e66767; --B-soft: rgba(230,103,103,0.22);
+    --ok: #0ca30c; --warn-bg: #3a2f10;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --A: #3987e5; --A-soft: rgba(57,135,229,0.22); --B: #e66767; --B-soft: rgba(230,103,103,0.22);
+  --ok: #0ca30c; --warn-bg: #3a2f10;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 18px 16px 0; max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--ring); margin-right: 6px; }
+.badge.live::before { content: "●"; color: var(--crit); margin-right: 4px; }
+nav { display: flex; gap: 4px; margin-top: 14px; border-bottom: 1px solid var(--grid); overflow-x: auto; }
+nav button { background: none; border: 0; padding: 10px 14px; font: inherit; color: var(--ink-2); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+nav button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+section.tab { display: none; } section.tab.on { display: block; }
+.row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 12px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card h2 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
+.card h3 { font-size: 13px; margin: 14px 0 6px; font-weight: 600; color: var(--ink-2); }
+.k { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.big { font-size: 34px; font-weight: 650; line-height: 1.1; margin-top: 4px; }
+.mid { font-size: 22px; font-weight: 600; }
+.note { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.muted { color: var(--muted); }
+.warn { background: var(--warn-bg); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
+.chart { width: 100%; overflow: hidden; position: relative; }
+svg text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+svg .lbl { fill: var(--ink-2); font-size: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+.scroll { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-2); margin: 4px 0 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+#tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12); display: none; z-index: 10; max-width: 280px; }
+.prem { display: grid; grid-template-columns: minmax(150px, 1.3fr) 70px minmax(140px, 2fr) 120px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.prem input[type=range] { width: 100%; accent-color: var(--A); }
+.prem input[type=number] { width: 64px; }
+input[type=number] { font: inherit; padding: 4px 6px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); }
+button.pri { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: 0; background: var(--ink); color: var(--page); cursor: pointer; }
+button.sec { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink); cursor: pointer; }
+.split { font-variant-numeric: tabular-nums; font-size: 13px; }
+.toggle { font-size: 13px; color: var(--ink-2); display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; cursor: pointer; margin: 3px 0; }
+@media (max-width: 640px) {
+  .prem { grid-template-columns: 1fr 64px; }
+  .prem .rng, .prem .split { grid-column: 1 / -1; }
+  .big { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Projeção do 2º turno presidencial 2026</h1>
+  <div class="sub"><span id="badge" class="badge">carregando…</span><span id="upd"></span></div>
+  <nav>
+    <button data-tab="apuracao" class="on">Apuração ao vivo</button>
+    <button data-tab="premissas">Premissas</button>
+    <button data-tab="pesquisas">Pesquisas</button>
+  </nav>
+</header>
+<main>
+<!-- ============================ APURAÇÃO ============================ -->
+<section class="tab on" id="apuracao">
+  <div id="aviso" class="warn" style="display:none"></div>
+  <div class="row">
+    <div class="card"><div class="k"><span class="sw" style="background:var(--A)"></span><span class="nA">Flávio Bolsonaro</span> — projeção final</div>
+      <div class="big" id="pA">–</div><div class="note" id="icA"></div></div>
+    <div class="card"><div class="k"><span class="sw" style="background:var(--B)"></span><span class="nB">Lula</span> — projeção final</div>
+      <div class="big" id="pB">–</div><div class="note" id="icB"></div></div>
+    <div class="card"><div class="k">Probabilidade de vitória</div>
+      <div class="mid" style="margin-top:6px"><span id="probA">–</span> <span class="muted" style="font-size:14px">×</span> <span id="probB">–</span></div>
+      <div class="note"><span class="nA">Flávio</span> × <span class="nB">Lula</span> · 3.000 simulações</div></div>
+    <div class="card"><div class="k">Apuração TSE</div>
+      <div class="mid" style="margin-top:6px" id="secoes">–</div>
+      <div class="note" id="parcial"></div></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <h2>Projeção de <span class="nA">Flávio</span> (% dos válidos) ao longo da apuração</h2>
+    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span></div>
+    <div class="chart" id="chHist"></div>
+    <div class="note">Eixo horizontal: % de seções totalizadas. Acima de 50% = <span class="nA">Flávio</span> vence; abaixo = <span class="nB">Lula</span>.</div>
+  </div>
+  <div class="row" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));">
+    <div class="card">
+      <h2>Vetor de desvio por UF: projeção − linha de base do 1º turno (p.p.)</h2>
+      <div class="legend"><span><span class="sw" style="background:var(--A)"></span>votando mais em <span class="nA">Flávio</span> que a base</span><span><span class="sw" style="background:var(--B)"></span>mais em <span class="nB">Lula</span></span></div>
+      <div class="chart" id="chUF"></div>
+      <div class="note">Linha de base = 1º turno com a divisão dos terceiros da aba Premissas. UFs sem urnas apuradas herdam o desvio aprendido nas UFs de perfil parecido.</div>
+    </div>
+    <div class="card">
+      <h2>Por região</h2>
+      <div class="scroll"><table id="tbReg"></table></div>
+      <h3>Por UF</h3>
+      <div class="scroll" style="max-height:380px;overflow-y:auto"><table id="tbUF"></table></div>
+    </div>
+  </div>
+  <div class="row" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));">
+    <div class="card"><h2>Municípios votando mais em <span class="nA">Flávio</span> que a base</h2><div class="scroll"><table id="tbMA"></table></div></div>
+    <div class="card"><h2>Municípios votando mais em <span class="nB">Lula</span> que a base</h2><div class="scroll"><table id="tbMB"></table></div></div>
+  </div>
+  <div class="note">Fonte: feed oficial do TSE (resultados.tse.jus.br, eleição 6258), município a município. O TSE não divulga zona durante a apuração; a projeção por zona é salva em data/live/projecao_zonas_6258.csv.</div>
+</section>
+
+<!-- ============================ PREMISSAS ============================ -->
+<section class="tab" id="premissas">
+  <div class="card" style="margin-bottom:12px">
+    <h2>Para onde vão os eleitores dos candidatos eliminados</h2>
+    <div class="note" style="margin-bottom:8px">Porcentagem dos eleitores de cada candidato (entre os que votarem em alguém no 2º turno) que vai para <span class="nA">Flávio</span>; o restante vai para <span class="nB">Lula</span>. Isso define a <b>linha de base</b> de cada município. Durante a apuração o modelo mede o quanto cada município apurado se afasta dessa base e aplica esse desvio aos não apurados — ou seja, a premissa pesa muito no início e quase nada depois de ~2–5% das seções.</div>
+    <div id="premRows"></div>
+    <h3>Ponto de partida antes da primeira urna</h3>
+    <label class="toggle"><input type="radio" name="pmode" value="auto" checked> calculado pela divisão acima</label><br>
+    <label class="toggle"><input type="radio" name="pmode" value="fix"> fixar <span class="nA">Flávio</span> em <input type="number" id="priorA" min="30" max="70" step="0.1" value="50"> % dos válidos (ex.: média das pesquisas) — desloca a base uniformemente</label>
+    <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button class="pri" id="aplicar">Aplicar e reprojetar</button>
+      <button class="sec" id="padrao">Voltar ao padrão</button>
+      <span class="note" id="premMsg"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Linha de base atual</h2>
+    <div class="mid" id="baseNac">–</div>
+    <div class="note">Projeção nacional de <span class="nA">Flávio</span> com 0% apurado, só com o 1º turno e as premissas acima. Para comparação: na regressão por município, os terceiros de 2022 (Tebet, Ciro e demais) foram, somados, ≈70/30 para Bolsonaro.</div>
+  </div>
+</section>
+
+<!-- ============================ PESQUISAS ============================ -->
+<section class="tab" id="pesquisas">
+  <div id="pesqAviso" class="warn" style="display:none"></div>
+  <div class="row" id="pesqTiles"></div>
+  <div class="card" style="margin-bottom:12px">
+    <h2>2º turno — pesquisas da última semana: <span class="nA">Flávio</span> em % dos válidos</h2>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--A);border-radius:50%"></span>pesquisa</span>
+      <span><span class="sw" style="background:none;border:2px solid var(--A);border-radius:50%"></span>ajustada pelo erro do instituto no 1º turno</span>
+      <label class="toggle"><input type="checkbox" id="mostraAj" checked> mostrar ajuste</label>
+    </div>
+    <div class="chart" id="chPesq"></div>
+    <div class="note">Fatia de <span class="nA">Flávio</span> = Flávio ÷ (Flávio + Lula), para comparar institutos que divulgam votos totais e válidos. Ajuste: desloca a pesquisa pela metade do erro que o mesmo instituto teve na margem Flávio − Lula no 1º turno (média das pesquisas da semana final). Fonte: Wikipédia, que consolida os registros do TSE — conferir no PesqEle antes de citar.</div>
+    <h3>Registradas e ainda não divulgadas</h3>
+    <div class="scroll"><table id="tbPend"></table></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <h2>1º turno — pesquisas da semana final × resultado das urnas (% dos válidos)</h2>
+    <div class="legend"><span><span class="sw" style="background:var(--muted);border-radius:50%"></span>pesquisa</span><span><span class="sw" style="background:var(--ink);width:3px;height:14px;border-radius:1px"></span>resultado oficial TSE</span></div>
+    <div class="chart" id="ch1T"></div>
+    <h3>Erro na margem Flávio − Lula por instituto (pesquisa − urna, p.p.)</h3>
+    <div class="legend"><span><span class="sw" style="background:var(--B)"></span>subestimou <span class="nA">Flávio</span></span><span><span class="sw" style="background:var(--A)"></span>superestimou <span class="nA">Flávio</span></span></div>
+    <div class="chart" id="chErro"></div>
+  </div>
+  <div class="card"><h2>Todas as pesquisas de 2º turno da última semana</h2><div class="scroll"><table id="tbPesq"></table></div></div>
+</section>
+</main>
+<div id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const f1 = x => x == null ? "–" : x.toFixed(1).replace(".", ",");
+const f2 = x => x == null ? "–" : x.toFixed(2).replace(".", ",");
+const pct = (x, d = 1) => x == null ? "–" : x.toFixed(d).replace(".", ",") + "%";
+const sgn = (x, d = 1) => x == null ? "–" : (x > 0 ? "+" : "") + x.toFixed(d).replace(".", ",");
+let S = null, P = null;
+
+// ------------------------------------------------------------- abas
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("section.tab").forEach(x => x.classList.toggle("on", x.id === b.dataset.tab));
+  try { localStorage.setItem("aba", b.dataset.tab); } catch (e) {}
+  render();
+});
+try { const a = localStorage.getItem("aba"); if (a) document.querySelector(`nav button[data-tab=${a}]`)?.click(); } catch (e) {}
+
+// ------------------------------------------------------------- tooltip
+const tip = $("#tip");
+function showTip(ev, html) { tip.innerHTML = html; tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px"; }
+const hideTip = () => tip.style.display = "none";
+
+// ------------------------------------------------------------- svg util
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent) { const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function svgIn(id, h) { const box = $(id); box.innerHTML = ""; const w = Math.max(box.clientWidth, 280);
+  const s = el("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}` }, box); return [s, w]; }
+function ticks(lo, hi, n) { const st = [0.5, 1, 2, 5, 10, 20, 25, 50]; const raw = (hi - lo) / n;
+  const step = st.find(s => s >= raw) || 50; const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6)); return out; }
+
+// ------------------------------------------------- gráfico: histórico
+function chartHist() {
+  const H = S.historico || []; const [s, w] = svgIn("#chHist", 280);
+  const m = { l: 40, r: 16, t: 10, b: 28 }, iw = w - m.l - m.r, ih = 280 - m.t - m.b;
+  const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).filter(v => v != null);
+  let lo = Math.min(45, ...vals), hi = Math.max(55, ...vals); lo = Math.floor(lo); hi = Math.ceil(hi);
+  const X = v => m.l + iw * v / 100, Y = v => m.t + ih * (hi - v) / (hi - lo);
+  ticks(lo, hi, 5).forEach(v => { el("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v), stroke: css(v === 50 ? "--axis" : "--grid"), "stroke-width": v === 50 ? 1.5 : 1 }, s);
+    el("text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end" }, s).textContent = v + "%"; });
+  [0, 20, 40, 60, 80, 100].forEach(v => el("text", { x: X(v), y: m.t + ih + 18, "text-anchor": "middle" }, s).textContent = v + "%");
+  el("text", { x: m.l + iw - 4, y: Y(50) - 6, "text-anchor": "end", class: "lbl" }, s).textContent = "50%";
+  if (!H.length) { el("text", { x: m.l + iw / 2, y: m.t + ih / 2, "text-anchor": "middle", class: "lbl" }, s).textContent = "Aguardando as primeiras urnas…"; return; }
+  const band = H.map(h => `${X(h.pct_secoes)},${Y(h.hi)}`).join(" ") + " " + H.slice().reverse().map(h => `${X(h.pct_secoes)},${Y(h.lo)}`).join(" ");
+  el("polygon", { points: band, fill: css("--A-soft") }, s);
+  const par = H.filter(h => h.parcial_A != null);
+  el("polyline", { points: par.map(h => `${X(h.pct_secoes)},${Y(h.parcial_A)}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
+  el("polyline", { points: H.map(h => `${X(h.pct_secoes)},${Y(h.proj_A)}`).join(" "), fill: "none", stroke: css("--A"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
+  const u = H[H.length - 1];
+  el("circle", { cx: X(u.pct_secoes), cy: Y(u.proj_A), r: 4, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" }, s);
+  const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, s);
+  hit.addEventListener("mousemove", ev => { const r = s.getBoundingClientRect(); const xv = (ev.clientX - r.left - m.l) / iw * 100;
+    let best = H[0]; H.forEach(h => { if (Math.abs(h.pct_secoes - xv) < Math.abs(best.pct_secoes - xv)) best = h; });
+    cross.setAttribute("x1", X(best.pct_secoes)); cross.setAttribute("x2", X(best.pct_secoes)); cross.setAttribute("visibility", "visible");
+    showTip(ev, `<b>${best.hora}</b> · ${pct(best.pct_secoes, 2)} seções<br>Projeção ${S.nomes.A}: <b>${pct(best.proj_A, 2)}</b> (IC90 ${f1(best.lo)}–${f1(best.hi)})<br>Parcial TSE: ${pct(best.parcial_A, 2)}<br>P(${S.nomes.A} vence): ${pct(100 * best.prob_A)}`); });
+  hit.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+}
+
+// ------------------------------------------- gráfico: barras divergentes
+function divBars(id, rows, valKey, labelKey, tipFn, fmt = v => sgn(v, 1)) {
+  const maxLab = Math.max(2, ...rows.map(r => String(r[labelKey]).length));
+  const rh = 20, m = { l: Math.min(150, 12 + maxLab * 6.6), r: 44, t: 6, b: 22 }; const h = m.t + m.b + rows.length * rh;
+  const [s, w] = svgIn(id, h); const iw = w - m.l - m.r;
+  const mx = Math.max(1, ...rows.map(r => Math.abs(r[valKey] || 0))); const lim = Math.ceil(mx * 1.3);  // folga para o rótulo de valor
+  const X = v => m.l + iw / 2 + (iw / 2) * v / lim;
+  ticks(-lim, lim, 4).forEach(v => { el("line", { x1: X(v), x2: X(v), y1: m.t, y2: h - m.b, stroke: css(v === 0 ? "--axis" : "--grid"), "stroke-width": 1 }, s);
+    el("text", { x: X(v), y: h - 6, "text-anchor": "middle" }, s).textContent = sgn(v, Math.abs(lim) < 3 ? 1 : 0); });
+  rows.forEach((r, i) => { const v = r[valKey] || 0, y = m.t + i * rh + 3, bh = rh - 6;
+    el("text", { x: m.l - 6, y: y + bh / 2 + 4, "text-anchor": "end", class: "lbl" }, s).textContent = r[labelKey];
+    const x0 = X(0), x1 = X(v); const bw = Math.max(Math.abs(x1 - x0), 1);
+    const b = el("rect", { x: Math.min(x0, x1), y, width: bw, height: bh, rx: 3, fill: css(v >= 0 ? "--A" : "--B") }, s);
+    el("text", { x: v >= 0 ? x1 + 4 : x1 - 4, y: y + bh / 2 + 4, "text-anchor": v >= 0 ? "start" : "end" }, s).textContent = fmt(v);
+    const hit = el("rect", { x: m.l, y: y - 3, width: iw, height: rh, fill: "transparent" }, s);
+    hit.addEventListener("mousemove", ev => showTip(ev, tipFn(r))); hit.addEventListener("mouseleave", hideTip); });
+}
+
+// ------------------------------------------------------- tabelas
+function table(id, cols, rows) {
+  $(id).innerHTML = "<thead><tr>" + cols.map(c => `<th>${c[0]}</th>`).join("") + "</tr></thead><tbody>" +
+    rows.map(r => "<tr>" + cols.map(c => `<td>${c[1](r)}</td>`).join("") + "</tr>").join("") + "</tbody>";
+}
+
+// ------------------------------------------------------- render apuração
+function renderApuracao() {
+  if (!S) return; const p = S.proj;
+  document.querySelectorAll(".nA").forEach(e => e.textContent = S.nomes.A);
+  document.querySelectorAll(".nB").forEach(e => e.textContent = S.nomes.B);
+  $("#pA").textContent = pct(p.A, 2); $("#pB").textContent = pct(p.B, 2);
+  $("#icA").textContent = `IC 90%: ${f2(p.A_ic90[0])} – ${f2(p.A_ic90[1])} · IC 95%: ${f2(p.A_ic95[0])} – ${f2(p.A_ic95[1])}`;
+  $("#icB").textContent = `IC 90%: ${f2(100 - p.A_ic90[1])} – ${f2(100 - p.A_ic90[0])}`;
+  const pp = x => x > 0.999 ? "> 99,9%" : x < 0.001 ? "< 0,1%" : pct(100 * x);
+  $("#probA").textContent = pp(p.prob_A); $("#probB").textContent = pp(1 - p.prob_A);
+  $("#secoes").textContent = pct(S.tse.pct_secoes, 2) + " das seções";
+  $("#parcial").innerHTML = S.tse.parcial_A == null ? "Sem votos apurados: projeção = linha de base do 1º turno" :
+    `Parcial: ${S.nomes.A} ${pct(S.tse.parcial_A, 2)} × ${S.nomes.B} ${pct(100 - S.tse.parcial_A, 2)}<br>${p.municipios_com_dados} municípios com dados (${p.municipios_completos} completos)`;
+  const av = []; if (S.modo === "demo") av.push(`<b>MODO DEMO</b> — apuração simulada para ensaio. Resultado "real" sorteado nesta simulação: ${S.nomes.A} ${pct(S.real_demo, 2)}.`);
+  if (S.erro) av.push(`Última coleta falhou: ${S.erro} (mantendo o último dado bom; nova tentativa em ${S.intervalo}s).`);
+  if (S.tse.pct_secoes > 0 && S.tse.pct_secoes < 2) av.push("Menos de 2% das seções: a projeção ainda depende bastante das premissas (aba Premissas).");
+  $("#aviso").style.display = av.length ? "block" : "none"; $("#aviso").innerHTML = av.join("<br>");
+  chartHist();
+  const ufs = S.ufs.slice().sort((a, b) => b.desvio_pp - a.desvio_pp);
+  divBars("#chUF", ufs, "desvio_pp", "nome", r => `<b>${r.nome}</b><br>Projeção ${S.nomes.A}: ${pct(r.proj_A)}<br>Base 1º turno: ${pct(r.base_A)}<br>Desvio: ${sgn(r.desvio_pp, 2)} p.p.<br>Apurado: ${pct(r.apurado, 0)} · peso ${pct(r.peso)}`);
+  const cols = [["", r => r.nome], ["Peso", r => pct(r.peso)], ["Apurado", r => pct(r.apurado, 0)], ["Base 1ºT", r => pct(r.base_A)],
+    [`${S.nomes.A.split(" ")[0]} proj.`, r => `<b>${pct(r.proj_A)}</b>`], ["Desvio p.p.", r => sgn(r.desvio_pp, 2)]];
+  table("#tbReg", cols, S.regioes.slice().sort((a, b) => b.peso - a.peso));
+  table("#tbUF", cols, S.ufs.slice().sort((a, b) => b.peso - a.peso));
+  const mc = [["Município", r => r.municipio], ["Apurado", r => pct(r.apurado, 0)], ["Base", r => pct(r.base_A)], ["Proj.", r => pct(r.proj_A)], ["Desvio", r => sgn(r.desvio_pp, 1)]];
+  table("#tbMA", mc, S.mais_A); table("#tbMB", mc, S.mais_B);
+  if (!S.mais_A.length) { $("#tbMA").innerHTML = "<tr><td class='muted'>sem municípios apurados</td></tr>"; $("#tbMB").innerHTML = "<tr><td class='muted'>sem municípios apurados</td></tr>"; }
+}
+
+// ------------------------------------------------------- premissas
+let premInit = false;
+const VOTOS_1T = { cury: 2.89, renan: 2.24, caiado: 2.18, zema: 0.27, outros: 0.23 };
+function renderPremissas() {
+  if (!S) return; $("#baseNac").textContent = pct(S.base_nacional, 2);
+  if (premInit) return; premInit = true;
+  const t = S.premissas.transf;
+  $("#premRows").innerHTML = `<div class="prem" style="font-size:12px;color:var(--ink-2)"><div>Candidato (votos no 1º turno)</div><div>% p/ Flávio</div><div class="rng"></div><div class="split">Flávio / Lula</div></div>` +
+    Object.keys(t).map(k => `<div class="prem"><div>${S.nomes_terc[k]} <span class="muted">(${f2(VOTOS_1T[k])}%)</span></div>
+      <div><input type="number" min="0" max="100" step="1" id="n_${k}" value="${Math.round(t[k])}"></div>
+      <div class="rng"><input type="range" min="0" max="100" step="1" id="r_${k}" value="${Math.round(t[k])}"></div>
+      <div class="split" id="s_${k}"></div></div>`).join("");
+  Object.keys(t).forEach(k => { const n = $("#n_" + k), r = $("#r_" + k), sp = $("#s_" + k);
+    const up = v => { n.value = v; r.value = v; sp.textContent = `${v} / ${100 - v}`; };
+    n.oninput = () => up(Math.max(0, Math.min(100, +n.value || 0))); r.oninput = () => up(+r.value); up(Math.round(t[k])); });
+  if (S.premissas.prior_A != null) { document.querySelector("input[name=pmode][value=fix]").checked = true; $("#priorA").value = S.premissas.prior_A; }
+}
+async function enviarPremissas(corpo) {
+  $("#premMsg").textContent = "reprojetando…";
+  const r = await fetch("/api/premissas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  const j = await r.json(); $("#premMsg").textContent = j.ok ? "aplicado ✓" : "erro: " + j.erro; await carregar();
+}
+$("#aplicar").onclick = () => { const transf = {}; Object.keys(S.premissas.transf).forEach(k => transf[k] = +$("#n_" + k).value);
+  const fix = document.querySelector("input[name=pmode]:checked").value === "fix";
+  enviarPremissas({ transf, prior_A: fix ? +$("#priorA").value : null }); };
+$("#padrao").onclick = () => { premInit = false; enviarPremissas({ transf: { cury: 50, renan: 50, caiado: 70, zema: 80, outros: 35 }, prior_A: null }).then(() => { premInit = false; renderPremissas(); }); };
+
+// ------------------------------------------------------- pesquisas
+function renderPesquisas() {
+  if (!P) return; const D = P.dados;
+  $("#pesqAviso").style.display = (P.erro || !D) ? "block" : "none"; $("#pesqAviso").textContent = P.erro || (!D ? "Carregando pesquisas…" : "");
+  if (!D) return; const st = D.segundo_turno, pt = D.primeiro_turno, A = S ? S.nomes.A : "Flávio Bolsonaro";
+  const s = st.stats, su = st.stats_ultima_por_instituto, sa = st.stats_ajustado;
+  $("#pesqTiles").innerHTML = [
+    ["Média da última semana", pct(s.media), `${A.split(" ")[0]} nos válidos · ${s.n} pesquisas (${st.janela})`],
+    ["Dispersão", `±${f1(s.dp)} p.p.`, `desvio-padrão · mín ${f1(s.min)} / máx ${f1(s.max)} · mediana ${f1(s.mediana)}`],
+    ["Última de cada instituto", pct(su.media), `${su.n} institutos · dp ${f1(su.dp)} p.p.`],
+    ["Ajustada pelo erro do 1º turno", pct(sa.media), `${sa.n} institutos com pesquisa na semana final do 1º turno · dp ${f1(sa.dp)}`],
+    ["Erro médio no 1º turno", `${sgn(pt.erro_margem_medio)} p.p.`, `na margem Flávio − Lula (pesquisa − urna). ${A.split(" ")[0]}: ${sgn(pt.erro_medio.flavio)} · Lula: ${sgn(pt.erro_medio.lula)}`],
+  ].map(t => `<div class="card"><div class="k">${t[0]}</div><div class="mid" style="margin-top:6px">${t[1]}</div><div class="note">${t[2]}</div></div>`).join("");
+  // dot plot 2T
+  const rows = st.divulgadas; const rh = 22, m = { l: $("#chPesq").clientWidth < 500 ? 150 : 190, r: 20, t: 8, b: 24 }, h = m.t + m.b + rows.length * rh;
+  const [sv, w] = svgIn("#chPesq", h); const iw = w - m.l - m.r; const aj = $("#mostraAj").checked;
+  const vals = rows.flatMap(r => [r.flavio_validos, aj ? r.flavio_validos_ajustado : null]).filter(v => v != null);
+  const lo = Math.floor(Math.min(47, ...vals)), hi = Math.ceil(Math.max(54, ...vals)); const X = v => m.l + iw * (v - lo) / (hi - lo);
+  ticks(lo, hi, 6).forEach(v => { el("line", { x1: X(v), x2: X(v), y1: m.t, y2: h - m.b, stroke: css(v === 50 ? "--axis" : "--grid"), "stroke-width": v === 50 ? 1.5 : 1 }, sv);
+    el("text", { x: X(v), y: h - 6, "text-anchor": "middle" }, sv).textContent = v + "%"; });
+  el("line", { x1: X(s.media), x2: X(s.media), y1: m.t, y2: h - m.b, stroke: css("--A"), "stroke-width": 1, opacity: .6 }, sv);
+  rows.forEach((r, i) => { const y = m.t + i * rh + rh / 2;
+    const nm = m.l < 190 && r.instituto.length > 13 ? r.instituto.slice(0, 12) + "…" : r.instituto;
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", class: "lbl" }, sv).textContent = `${nm} · ${r.fim}`;
+    if (aj && r.flavio_validos_ajustado != null) { el("line", { x1: X(r.flavio_validos), x2: X(r.flavio_validos_ajustado), y1: y, y2: y, stroke: css("--A"), "stroke-width": 1, opacity: .5 }, sv);
+      el("circle", { cx: X(r.flavio_validos_ajustado), cy: y, r: 4.5, fill: css("--surface"), stroke: css("--A"), "stroke-width": 2 }, sv); }
+    el("circle", { cx: X(r.flavio_validos), cy: y, r: 5, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, sv);
+    const hit = el("rect", { x: 0, y: y - rh / 2, width: w, height: rh, fill: "transparent" }, sv);
+    hit.addEventListener("mousemove", ev => showTip(ev, `<b>${r.instituto}</b> · campo ${r.inicio}–${r.fim}<br>Amostra ${r.amostra ? Math.round(r.amostra).toLocaleString("pt-BR") : "–"} · margem ±${f1(r.margem)}<br>Totais: Flávio ${f1(r.flavio)} × Lula ${f1(r.lula)} · indecisos/BN ${f1(r.indecisos)}<br>Válidos: <b>Flávio ${f2(r.flavio_validos)}%</b>${r.flavio_validos_ajustado != null ? `<br>Ajustado (erro 1ºT ${sgn(r.vies_1t_margem)} p.p.): ${f2(r.flavio_validos_ajustado)}%` : "<br>sem pesquisa do instituto na semana final do 1º turno"}`));
+    hit.addEventListener("mouseleave", hideTip); });
+  el("text", { x: X(s.media) + 4, y: m.t + 10, class: "lbl" }, sv).textContent = `média ${f1(s.media)}%`;
+  table("#tbPend", [["Instituto", r => r.instituto], ["Campo", r => `${r.inicio}–${r.fim}`], ["Amostra", r => r.amostra ? Math.round(r.amostra).toLocaleString("pt-BR") : "–"], ["Margem", r => "±" + f1(r.margem)]], st.pendentes);
+  if (!st.pendentes.length) $("#tbPend").innerHTML = "<tr><td class='muted'>nenhuma</td></tr>";
+  table("#tbPesq", [["Instituto", r => r.instituto], ["Campo", r => `${r.inicio}–${r.fim}`], ["Amostra", r => r.amostra ? Math.round(r.amostra).toLocaleString("pt-BR") : "–"],
+    ["Margem", r => "±" + f1(r.margem)], ["Flávio (tot.)", r => f1(r.flavio)], ["Lula (tot.)", r => f1(r.lula)], ["Indec./BN", r => f1(r.indecisos)],
+    ["Flávio válidos", r => `<b>${f2(r.flavio_validos)}</b>`], ["Ajustado", r => f2(r.flavio_validos_ajustado)]], rows);
+  // 1º turno: tiras por candidato
+  const cands = [["flavio", "Flávio Bolsonaro", "--A"], ["lula", "Lula", "--B"], ["cury", "Augusto Cury"], ["renan", "Renan Santos"], ["caiado", "Ronaldo Caiado"], ["zema", "Romeu Zema"]];
+  const ps = pt.pesquisas; const rh2 = 46, m2 = { l: 130, r: 20, t: 6, b: 24 }, h2 = m2.t + m2.b + cands.length * rh2;
+  const [s2, w2] = svgIn("#ch1T", h2); const iw2 = w2 - m2.l - m2.r;
+  const X2 = v => m2.l + iw2 * v / 52;
+  ticks(0, 52, 8).forEach(v => { el("line", { x1: X2(v), x2: X2(v), y1: m2.t, y2: h2 - m2.b, stroke: css("--grid") }, s2);
+    el("text", { x: X2(v), y: h2 - 6, "text-anchor": "middle" }, s2).textContent = v + "%"; });
+  cands.forEach(([k, nome, cor], i) => { const y = m2.t + i * rh2 + rh2 / 2; const real = pt.resultado[k];
+    el("text", { x: m2.l - 8, y: y - 2, "text-anchor": "end", class: "lbl" }, s2).textContent = nome;
+    el("text", { x: m2.l - 8, y: y + 12, "text-anchor": "end" }, s2).textContent = `urna ${f2(real)} · erro ${sgn(pt.erro_medio[k])}`;
+    ps.forEach((r, j) => { const v = r[k + "_validos"]; if (v == null) return; const jy = y + ((j % 5) - 2) * 3;
+      const c = el("circle", { cx: X2(v), cy: jy, r: 4, fill: css(cor || "--muted"), "fill-opacity": .55, stroke: css("--surface"), "stroke-width": 1 }, s2);
+      c.addEventListener("mousemove", ev => showTip(ev, `<b>${r.instituto}</b> · ${r.inicio}–${r.fim}<br>${nome}: ${f2(v)}% dos válidos<br>Urna: ${f2(real)}% · erro ${sgn(v - real, 2)} p.p.`)); c.addEventListener("mouseleave", hideTip); });
+    el("rect", { x: X2(real) - 1.5, y: y - 13, width: 3, height: 26, rx: 1, fill: css("--ink") }, s2); });
+  divBars("#chErro", pt.por_instituto.filter(r => r.erro_margem != null), "erro_margem", "instituto",
+    r => `<b>${r.instituto}</b><br>Erro na margem Flávio − Lula: ${sgn(r.erro_margem, 2)} p.p.<br>(média das pesquisas do instituto na semana final)`);
+}
+$("#mostraAj").onchange = renderPesquisas;
+
+// ------------------------------------------------------- ciclo
+function render() { try { renderApuracao(); renderPremissas(); renderPesquisas(); } catch (e) { console.error(e); } }
+async function carregar() {
+  try { S = await (await fetch("/api/estado")).json();
+    $("#badge").className = "badge" + (S.modo === "ao_vivo" && S.tse.pct_secoes > 0 ? " live" : "");
+    $("#badge").textContent = S.modo === "demo" ? "DEMO" : (S.tse.pct_secoes > 0 ? "AO VIVO" : "aguardando apuração");
+    $("#upd").textContent = S.atualizado ? `última coleta ${S.atualizado} (horário de Brasília) · atualiza a cada ${S.intervalo}s` : "coletando…";
+  } catch (e) { $("#badge").textContent = "sem conexão com o servidor"; }
+  try { P = await (await fetch("/api/pesquisas")).json(); } catch (e) {}
+  render();
+}
+carregar(); setInterval(carregar, 5000);
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 150); });
+</script>
+</body>
+</html>

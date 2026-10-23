@@ -40,7 +40,7 @@ def _int(x):
 
 
 class ColetorTSE:
-    def __init__(self, eleicao=ELEICAO_T2_2026, workers=32, timeout=20):
+    def __init__(self, eleicao=ELEICAO_T2_2026, workers=16, timeout=20):
         self.eleicao = eleicao
         self.base = f"{RESULTADOS}/{CICLO_2026}/{eleicao}"
         self.s = requests.Session()
@@ -167,12 +167,19 @@ def main():
     ap.add_argument("--intervalo", type=int, default=120)
     ap.add_argument("--uma-vez", action="store_true")
     ap.add_argument("--sims", type=int, default=3000)
+    ap.add_argument("--transf", default=None,
+                    help="divisão dos terceiros em %% para A, ex.: cury=50,renan=50,caiado=70,zema=80,outros=35")
     ap.add_argument("--prior-A", type=float, default=None,
                     help="calibra a linha de base para este %% de A antes da apuração (ex.: 50 = pesquisas)")
     a = ap.parse_args()
     LIVE.mkdir(parents=True, exist_ok=True)
     col = ColetorTSE(a.eleicao)
-    modelo = Modelo(ANO, alvo_prior=None if a.prior_A is None else a.prior_A / 100)
+    prior = dict(PRIOR_TRANSFERENCIA[ANO])
+    if a.transf:
+        for par in a.transf.split(","):
+            k, v = par.split("=")
+            prior[k.strip()] = float(v) / 100
+    modelo = Modelo(ANO, prior=prior, alvo_prior=None if a.prior_A is None else a.prior_A / 100)
     print(f"{len(col.municipios)} municípios no feed do TSE; prior de transferência: {modelo.prior}")
     hist = LIVE / f"historico_{a.eleicao}.csv"
     while True:

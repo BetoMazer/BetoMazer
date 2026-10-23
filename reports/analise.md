@@ -78,20 +78,39 @@ secundária.
 
 Aritmética pura: Lula precisa de ≈62% dos eleitores de terceiros que
 escolherem um finalista (45,16 + 0,62 × 7,81 ≈ 50) — sem contar diferencial
-de comparecimento. Com o prior do modelo (Cury 55%, Renan e Caiado 75%, Zema
-80%, esquerda residual 35% para Flávio) a linha de base dá **Flávio ≈52,1%**.
-Em 2022 Bolsonaro ganhou 5,9 p.p. entre turnos e Lula 2,5 p.p.; repetir algo
-parecido levaria Flávio a 52–53%.
+de comparecimento. Com a premissa padrão do modelo — conservadora: Cury
+50/50, Renan 50/50, Caiado 70/30, Zema 80/20, demais 35/65 — a linha de base
+dá **Flávio ≈51,4%**. Em 2022 Bolsonaro ganhou 5,9 p.p. entre turnos e Lula
+2,5 p.p.; repetir algo parecido levaria Flávio a 52–53%.
 
-O contraponto: o Datafolha de 22/10 mostra 50% × 50% nos válidos (51 × 49
-para Flávio em 15/10). Pesquisas subestimaram o bolsonarismo em 2022 (o último
-Datafolha do 2º turno dava Lula 52%, ele fez 50,9%), mas um empate técnico
-com a aritmética do 1º turno apontando +2 p.p. para Flávio indica que parte
-dos eleitores de terceiros — sobretudo Cury, cujo perfil é menos ideológico —
-e/ou um aumento de comparecimento no Nordeste podem estar indo para Lula. Por
-isso o prior tem desvio-padrão de 0,20 logit (≈±5 p.p.) e pode ser calibrado
-com `--prior-A`. Na prática, os backtests mostram que a partir de ~2% das
-seções apuradas o prior deixa de importar.
+## Pesquisas
+
+Na semana final antes do 1º turno (26/09–03/10), as pesquisas registradas
+erraram sistematicamente contra Flávio: em média ele apareceu 4,2 p.p. abaixo
+do que teve nas urnas (votos válidos) e Lula 0,8 p.p. abaixo; a margem
+Flávio − Lula saiu 3,5 p.p. melhor para Flávio do que as pesquisas
+indicavam. O erro variou muito por instituto — de −7,8 p.p. na margem
+(Indexa, CNT/MDA, Nexus/BTG) a praticamente zero (Palver, Gerp, Futura). Os
+terceiros, em contrapartida, foram superestimados (Renan +1,5, Caiado +1,2).
+
+Nas pesquisas de 2º turno da última semana (29 divulgadas entre 16 e 23/10),
+Flávio tem em média 51,1% dos válidos, com desvio-padrão de 1,1 p.p. (de 48,7
+a 52,7); considerando só a última de cada instituto, 50,9%. Se cada instituto
+for corrigido pela metade do erro que teve na margem do 1º turno, a média
+sobe para 52,9%.
+
+Os dois lados desse ajuste: a favor, o padrão de 2022 se repetiu (pesquisas
+subestimaram o bolsonarismo) e o erro de 2026 foi na mesma direção em quase
+todos os institutos, o que sugere viés de método (amostragem, ponderação,
+voto envergonhado), não ruído. Contra, parte do "erro" do 1º turno pode ter
+sido movimento real de última hora — voto útil de eleitores de Renan e
+Caiado migrando para Flávio no fim de semana, exatamente o que explicaria
+terceiros superestimados e Flávio subestimado ao mesmo tempo. Esse movimento
+já está contido nas pesquisas do 2º turno e não se repetiria. A verdade
+provavelmente está entre 50,9% e 52,9%.
+
+A linha de base do modelo (51,4%) está dentro dessa faixa. Os backtests
+mostram que a partir de ~2% das seções apuradas a premissa deixa de importar.
 
 ## Backtest do modelo
 
