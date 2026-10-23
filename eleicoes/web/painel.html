@@ -10,7 +10,7 @@
   --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
   --A: #2a78d6; --A-soft: rgba(42,120,214,0.16); --B: #e34948; --B-soft: rgba(227,73,72,0.16);
-  --neutral: #898781; --ok: #006300; --crit: #d03b3b; --warn-bg: #fff4d6;
+  --neutral: #898781; --N-soft: rgba(137,135,129,0.20); --ok: #006300; --crit: #d03b3b; --warn-bg: #fff4d6;
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
@@ -105,7 +105,7 @@ button.sec { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px s
   </div>
   <div class="card" style="margin-bottom:12px">
     <h2>Projeção de <span class="nA">Flávio</span> (% dos válidos) ao longo da apuração</h2>
-    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span></div>
+    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span><span><span class="sw" style="background:var(--N-soft);border:1px dashed var(--neutral)"></span>Trajetória esperada da parcial</span><span><span class="sw" style="background:var(--A);border-radius:50%"></span>Final projetado (IC 90%)</span></div>
     <div class="chart" id="chHist"></div>
     <div class="note">Eixo horizontal: % de seções totalizadas. Acima de 50% = <span class="nA">Flávio</span> vence; abaixo = <span class="nB">Lula</span>.</div>
   </div>
@@ -216,11 +216,31 @@ function svgIn(id, h) { const box = $(id); box.innerHTML = ""; const w = Math.ma
 function ticks(lo, hi, n) { const st = [0.5, 1, 2, 5, 10, 20, 25, 50]; const raw = (hi - lo) / n;
   const step = st.find(s => s >= raw) || 50; const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6)); return out; }
 
+
+// trajetória esperada da parcial (a partir de MIN_TRAJ % das seções) + resultado final projetado
+const MIN_TRAJ = 3;
+function drawTraj(s, E, X, Y, m, iw, ih) {
+  const T = E.trajetoria, p = E.proj;
+  if (!T || !T.x || E.tse.pct_secoes < MIN_TRAJ) return false;
+  const band = T.x.map((x, i) => `${X(x)},${Y(T.hi[i])}`).join(" ") + " " + T.x.slice().reverse().map((x, i) => `${X(x)},${Y(T.lo[T.x.length - 1 - i])}`).join(" ");
+  el("polygon", { points: band, fill: css("--N-soft") }, s);
+  el("polyline", { points: T.x.map((x, i) => `${X(x)},${Y(T.centro[i])}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-dasharray": "5 4", "stroke-linejoin": "round" }, s);
+  const xf = X(100);
+  el("line", { x1: xf, x2: xf, y1: Y(p.A_ic90[1]), y2: Y(p.A_ic90[0]), stroke: css("--A"), "stroke-width": 3, "stroke-linecap": "round" }, s);
+  el("circle", { cx: xf, cy: Y(p.A), r: 6, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
+  // rótulo do lado oposto ao que a curva chega (não cruza a linha tracejada)
+  const vemDeCima = T.centro[Math.floor(T.centro.length * 0.85)] >= p.A;
+  const yl = vemDeCima ? Y(p.A_ic90[0]) + 18 : Y(p.A_ic90[1]) - 10;
+  el("text", { x: xf - 10, y: yl, "text-anchor": "end", class: "lbl", "font-weight": "600" }, s).textContent = `final projetado: Flávio ${pct(p.A, 2)}`;
+  return true;
+}
+
 // ------------------------------------------------- gráfico: histórico
 function chartHist() {
-  const H = S.historico || []; const [s, w] = svgIn("#chHist", 280);
+  const E = S; const H = S.historico || []; const [s, w] = svgIn("#chHist", 280);
   const m = { l: 40, r: 16, t: 10, b: 28 }, iw = w - m.l - m.r, ih = 280 - m.t - m.b;
-  const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).filter(v => v != null);
+  const TT = E.trajetoria && E.trajetoria.x && E.tse.pct_secoes >= MIN_TRAJ ? E.trajetoria : { lo: [], hi: [] };
+  const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).concat(TT.lo, TT.hi, [E.proj.A_ic90[0], E.proj.A_ic90[1]]).filter(v => v != null);
   let lo = Math.min(45, ...vals), hi = Math.max(55, ...vals); lo = Math.floor(lo); hi = Math.ceil(hi);
   const X = v => m.l + iw * v / 100, Y = v => m.t + ih * (hi - v) / (hi - lo);
   ticks(lo, hi, 5).forEach(v => { el("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v), stroke: css(v === 50 ? "--axis" : "--grid"), "stroke-width": v === 50 ? 1.5 : 1 }, s);
@@ -233,6 +253,7 @@ function chartHist() {
   const par = H.filter(h => h.parcial_A != null);
   el("polyline", { points: par.map(h => `${X(h.pct_secoes)},${Y(h.parcial_A)}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
   el("polyline", { points: H.map(h => `${X(h.pct_secoes)},${Y(h.proj_A)}`).join(" "), fill: "none", stroke: css("--A"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
+  const temTraj = drawTraj(s, E, X, Y, m, iw, ih);
   const u = H[H.length - 1];
   el("circle", { cx: X(u.pct_secoes), cy: Y(u.proj_A), r: 4, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
   const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" }, s);

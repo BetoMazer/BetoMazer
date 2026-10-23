@@ -6,7 +6,7 @@
   --page: #f7f8f9; --surface: #ffffff; --ink: #0d1116; --ink-2: #4b535c; --muted: #858c94;
   --grid: #e3e6ea; --axis: #c4c9cf; --ring: rgba(13,17,22,0.10);
   --A: #2a78d6; --A-soft: rgba(42,120,214,0.16); --B: #e34948; --B-soft: rgba(227,73,72,0.16);
-  --neutral: #858c94; --ok: #006300; --okbg: #e3f4e3; --crit: #d03b3b; --warn-bg: #fff4d6; --info-bg: #e8f1fc;
+  --neutral: #858c94; --N-soft: rgba(133,140,148,0.20); --ok: #006300; --okbg: #e3f4e3; --crit: #d03b3b; --warn-bg: #fff4d6; --info-bg: #e8f1fc;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
@@ -124,9 +124,9 @@ input[type=number] { font: inherit; width: 66px; padding: 4px 6px; border: 1px s
   </div>
   <div class="card" style="margin-bottom:12px">
     <h2>Projeção de Flávio (% dos válidos) ao longo da apuração</h2>
-    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span></div>
+    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span><span><span class="sw" style="background:var(--N-soft);border:1px dashed var(--neutral)"></span>Trajetória esperada da parcial (faixa = cenários de ordem de chegada)</span><span><span class="sw" style="background:var(--A);border-radius:50%"></span>Resultado final projetado (IC 90%)</span></div>
     <div class="chart" id="chHist"></div>
-    <div class="note">Eixo horizontal: % de seções totalizadas. Acima de 50% Flávio vence; abaixo, Lula.</div>
+    <div class="note">Eixo horizontal: % de seções totalizadas. Acima de 50% Flávio vence; abaixo, Lula. A partir de 3% apurado, a linha tracejada mostra como a parcial do TSE deve andar daqui até 100%: o que falta em cada município vem do modelo, e a ordem de chegada vem do ritmo de apuração de cada UF. A faixa cinza cobre os cenários para as UFs que ainda não começaram (entrando já ou por último). A curva pode errar; o ponto final é a projeção e é o que importa.</div>
   </div>
   <div class="row2">
     <div class="card">
@@ -279,22 +279,44 @@ function ticks(lo, hi, n) { const st = [0.5, 1, 2, 5, 10, 20, 25, 50]; const raw
   const step = st.find(s => s >= raw) || 50; const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6)); return out; }
 function hover(node, fn) { node.addEventListener("mousemove", ev => showTip(ev, fn())); node.addEventListener("mouseleave", hideTip); }
 
+
+// trajetória esperada da parcial (a partir de MIN_TRAJ % das seções) + resultado final projetado
+const MIN_TRAJ = 3;
+function drawTraj(s, E, X, Y, m, iw, ih) {
+  const T = E.trajetoria, p = E.proj;
+  if (!T || !T.x || E.tse.pct_secoes < MIN_TRAJ) return false;
+  const band = T.x.map((x, i) => `${X(x)},${Y(T.hi[i])}`).join(" ") + " " + T.x.slice().reverse().map((x, i) => `${X(x)},${Y(T.lo[T.x.length - 1 - i])}`).join(" ");
+  el("polygon", { points: band, fill: css("--N-soft") }, s);
+  el("polyline", { points: T.x.map((x, i) => `${X(x)},${Y(T.centro[i])}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-dasharray": "5 4", "stroke-linejoin": "round" }, s);
+  const xf = X(100);
+  el("line", { x1: xf, x2: xf, y1: Y(p.A_ic90[1]), y2: Y(p.A_ic90[0]), stroke: css("--A"), "stroke-width": 3, "stroke-linecap": "round" }, s);
+  el("circle", { cx: xf, cy: Y(p.A), r: 6, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
+  // rótulo do lado oposto ao que a curva chega (não cruza a linha tracejada)
+  const vemDeCima = T.centro[Math.floor(T.centro.length * 0.85)] >= p.A;
+  const yl = vemDeCima ? Y(p.A_ic90[0]) + 18 : Y(p.A_ic90[1]) - 10;
+  el("text", { x: xf - 10, y: yl, "text-anchor": "end", class: "lbl", "font-weight": "600" }, s).textContent = `final projetado: Flávio ${pct(p.A, 2)}`;
+  return true;
+}
+
 // ------------------------------------------------- gráfico: histórico
-function chartHist(H) {
+function chartHist(E) {
+  const H = E.historico || [];
   const [s, w] = svgIn("#chHist", 280);
   const m = { l: 40, r: 16, t: 10, b: 28 }, iw = w - m.l - m.r, ih = 280 - m.t - m.b;
-  const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).filter(v => v != null);
+  const TT = E.trajetoria && E.trajetoria.x && E.tse.pct_secoes >= MIN_TRAJ ? E.trajetoria : { lo: [], hi: [] };
+  const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).concat(TT.lo, TT.hi, [E.proj.A_ic90[0], E.proj.A_ic90[1]]).filter(v => v != null);
   const lo = Math.floor(Math.min(45, ...vals)), hi = Math.ceil(Math.max(55, ...vals));
   const X = v => m.l + iw * v / 100, Y = v => m.t + ih * (hi - v) / (hi - lo);
   ticks(lo, hi, 5).forEach(v => { el("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v), stroke: css(v === 50 ? "--axis" : "--grid"), "stroke-width": v === 50 ? 1.5 : 1 }, s);
     el("text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end" }, s).textContent = v + "%"; });
   [0, 20, 40, 60, 80, 100].forEach(v => el("text", { x: X(v), y: m.t + ih + 18, "text-anchor": "middle" }, s).textContent = v + "%");
-  if (!H.length) { el("text", { x: m.l + iw / 2, y: m.t + ih / 2, "text-anchor": "middle", class: "lbl" }, s).textContent = "Aguardando as primeiras urnas (ou aperte Ver simulação)"; return; }
+  if (!H.length) { el("text", { x: m.l + iw / 2, y: m.t + ih / 2, "text-anchor": "middle", class: "lbl" }, s).textContent = "Aguardando as primeiras urnas (ou aperte Ver simulação). A curva projetada aparece a partir de 3% das seções."; return; }
   const band = H.map(h => `${X(h.pct_secoes)},${Y(h.hi)}`).join(" ") + " " + H.slice().reverse().map(h => `${X(h.pct_secoes)},${Y(h.lo)}`).join(" ");
   el("polygon", { points: band, fill: css("--A-soft") }, s);
   const par = H.filter(h => h.parcial_A != null);
   el("polyline", { points: par.map(h => `${X(h.pct_secoes)},${Y(h.parcial_A)}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
   el("polyline", { points: H.map(h => `${X(h.pct_secoes)},${Y(h.proj_A)}`).join(" "), fill: "none", stroke: css("--A"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
+  const temTraj = drawTraj(s, E, X, Y, m, iw, ih);
   const u = H[H.length - 1];
   el("circle", { cx: X(u.pct_secoes), cy: Y(u.proj_A), r: 4, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
   el("text", { x: Math.min(X(u.pct_secoes) + 8, w - 46), y: Y(u.proj_A) - 8, class: "lbl" }, s).textContent = pct(u.proj_A, 2);
@@ -388,7 +410,7 @@ function renderApuracao() {
   if (!demo && E.erro) av.push(`Última coleta falhou: ${esc(E.erro)}. O painel mantém o último dado bom.`);
   if (E.tse.pct_secoes > 0 && E.tse.pct_secoes < 2) av.push("Menos de 2% das seções: a projeção ainda depende bastante das premissas.");
   $("#banner").hidden = !av.length; $("#banner").innerHTML = av.join("<br>");
-  chartHist(E.historico || []);
+  chartHist(E);
   divBars("#chUF", E.ufs.slice().sort((a, b) => b.desvio_pp - a.desvio_pp), "desvio_pp", "nome", r => `<b>${r.nome}</b><br>Projeção Flávio: ${pct(r.proj_A)}<br>Base 1º turno: ${pct(r.base_A)}<br>Desvio: ${sgn(r.desvio_pp, 2)} p.p.<br>Apurado: ${pct(r.apurado, 0)} · peso ${pct(r.peso)}`);
   const cols = [["", r => r.nome], ["Peso", r => pct(r.peso)], ["Apurado", r => pct(r.apurado, 0)], ["Base 1ºT", r => pct(r.base_A)],
     ["Flávio proj.", r => `<b>${pct(r.proj_A)}</b>`], ["Desvio p.p.", r => sgn(r.desvio_pp, 2)]];

@@ -92,6 +92,54 @@ class ColetorDemo:
         return 100 * self.A.sum() / (self.A.sum() + self.B.sum())
 
 
+def trajetoria(d, snapshot, pct_secoes, inicio_uf=None, agora=0.0, pontos=41):
+    """Trajetória esperada da parcial do TSE daqui até 100% das seções.
+
+    O que falta apurar em cada município vem da projeção do modelo; a ordem
+    de chegada vem do ritmo de cada UF: a UF que apurou a fração a desde que
+    começou (há T rodadas) precisa de mais (1 - a) / a * T no mesmo ritmo, e
+    seus votos restantes chegam uniformemente nesse intervalo. Quando cada
+    UF pendente (sem nenhuma urna) vai começar é desconhecido, então há três
+    cenários: começam já, no meio, ou depois que a iniciada mais lenta
+    termina. Retorna a curva central e a faixa entre os cenários, num grid
+    de % de seções."""
+    if snapshot is None or not len(snapshot) or not pct_secoes:
+        return {}
+    obs = snapshot[["A", "B"]].astype(float)
+    dd = d.set_index(["uf", "cd_mun"]).join(obs, how="left").fillna({"A": 0.0, "B": 0.0})
+    dd["V"] = dd.A + dd.B
+    dd["R"] = (dd.validos_proj - dd.V).clip(lower=0)
+    dd["RA"] = (dd.A_proj_votos - dd.A).clip(lower=0).clip(upper=dd.R)
+    dd["V1pi"] = dd.V1 * dd.pi
+    g = dd.groupby(level="uf")[["R", "RA", "V1pi", "V1"]].sum()
+    a = (g.V1pi / g.V1).clip(0, 1)
+    iniciou = a > 0.005
+    A0, V0, Rt = dd.A.sum(), dd.V.sum(), g.R.sum()
+    if not iniciou.any() or Rt <= 0:
+        return {}
+    inicio_uf = inicio_uf or {}
+    T = pd.Series({u: max(agora - inicio_uf.get(u, 0.0), 0.0) + 1.0 for u in g.index})
+    D = ((1 - a) / a.where(iniciou) * T).clip(lower=1e-3, upper=200.0)
+    dmax = float(D.max())
+    dmed = float(D.median())
+    grid = np.linspace(pct_secoes, 100, pontos)
+    curvas = []
+    for atraso in (0.0, 0.5 * dmax, dmax):
+        ini = pd.Series(0.0, index=g.index).where(iniciou, atraso)
+        fim = D.where(iniciou, atraso + max(dmed, 1.0))
+        xs, ys = [], []
+        for tau in np.linspace(0, float(fim.max()), 200):
+            f = ((tau - ini) / (fim - ini)).clip(0, 1)
+            chegou = float((g.R * f).sum())
+            xs.append(pct_secoes + (100 - pct_secoes) * chegou / Rt)
+            ys.append(100 * (A0 + float((g.RA * f).sum())) / (V0 + chegou))
+        curvas.append(np.interp(grid, xs, ys))
+    c = np.vstack(curvas)
+    return {"x": grid.round(2).tolist(), "centro": c[1].round(3).tolist(),
+            "lo": c.min(axis=0).round(3).tolist(), "hi": c.max(axis=0).round(3).tolist(),
+            "ufs_pendentes": [u for u in g.index if not iniciou[u]]}
+
+
 class Estado:
     def __init__(self, demo=False, intervalo=60, sims=3000, eleicao=ELEICAO_T2_2026):
         self.lock = threading.Lock()
@@ -116,6 +164,7 @@ class Estado:
             except Exception:
                 pass
         self.pesq, self.pesq_erro, self.pesq_atualizado = None, None, None
+        self.inicio_uf = {}  # rodada em que cada UF teve as primeiras urnas
 
     # -------------------------------------------------------------- modelo
     def _modelo(self):
@@ -153,6 +202,10 @@ class Estado:
         tse = self.coletor.nacional()
         with self.lock:
             self.snapshot, self.tse = df, tse
+            if len(df):
+                ufs = df[df.pi > 0].index.get_level_values("uf").unique()
+                for u in ufs:
+                    self.inicio_uf.setdefault(u, float(len(self.historico)))
             self._projetar()
             self.atualizado = datetime.now(BRT).strftime("%d/%m %H:%M:%S")
             self.erro = None
@@ -240,6 +293,7 @@ class Estado:
                 "base_nacional": self.base_nacional,
                 "historico": self.historico[-500:],
                 "regioes": agrega("regiao"), "ufs": agrega("uf"),
+                "trajetoria": trajetoria(d, self.snapshot, tse["pct_secoes"], self.inicio_uf, len(self.historico)),
                 "mais_A": mun(com.nlargest(10, "desvio_pp")), "mais_B": mun(com.nsmallest(10, "desvio_pp")),
                 "premissas": self.premissas, "nomes_terc": NOMES_TERC,
                 "real_demo": self.coletor.real() if self.demo and self.coletor else None,
