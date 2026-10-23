@@ -1,0 +1,6 @@
+data/raw/
+data/live/
+data/processed/secao_*.parquet
+__pycache__/
+*.pyc
+.venv/
