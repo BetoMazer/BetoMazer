@@ -92,6 +92,23 @@ class ColetorDemo:
         return 100 * self.A.sum() / (self.A.sum() + self.B.sum())
 
 
+_ORDEM_MAPA = None
+
+
+def mapa_payload(d):
+    """Arrays alinhados à ordem de eleicoes/web/mapa.json: % apurado, parcial
+    de A (-1 sem votos) e projeção de A, inteiros, para o mapa municipal."""
+    global _ORDEM_MAPA
+    if _ORDEM_MAPA is None:
+        arq = Path(__file__).resolve().parent.parent / "data/processed/mapa_municipios.csv"
+        _ORDEM_MAPA = pd.read_csv(arq).set_index(["uf", "cd_mun"]).index
+    x = d.set_index(["uf", "cd_mun"]).reindex(_ORDEM_MAPA)
+    parcial = np.where(x.V_obs > 0, 100 * x.A_obs / x.V_obs.where(x.V_obs > 0, 1), -1)
+    return {"pi": np.round(100 * x.pi.fillna(0)).astype(int).tolist(),
+            "a": np.round(parcial).astype(int).tolist(),
+            "p": np.round(x.proj_A.fillna(-1)).astype(int).tolist()}
+
+
 def trajetoria(d, snapshot, pct_secoes, inicio_uf=None, agora=0.0, pontos=41):
     """Trajetória esperada da parcial do TSE daqui até 100% das seções.
 
@@ -253,12 +270,18 @@ class Estado:
             d["V1"] = m.V1
             d = d.reset_index()
             d["base_votos"] = d.validos_proj * d.base_1t_A / 100
+            obs = (self.snapshot[["A", "B"]].astype(float) if self.snapshot is not None and len(self.snapshot)
+                   else pd.DataFrame(columns=["A", "B"], dtype=float))
+            d = d.merge(obs.rename(columns={"A": "A_obs", "B": "B_obs"}), left_on=["uf", "cd_mun"], right_index=True, how="left")
+            d[["A_obs", "B_obs"]] = d[["A_obs", "B_obs"]].fillna(0.0)
+            d["V_obs"] = d.A_obs + d.B_obs
 
             def agrega(chave):
                 g = d.groupby(chave).apply(lambda x: pd.Series({
                     "proj_A": 100 * x.A_proj_votos.sum() / x.validos_proj.sum(),
                     "base_A": 100 * x.base_votos.sum() / x.validos_proj.sum(),
                     "apurado": 100 * (x.V1 * x.pi).sum() / x.V1.sum(),
+                    "restante": max(x.validos_proj.sum() - x.V_obs.sum(), 0.0),
                     "peso": x.validos_proj.sum()}), include_groups=False)
                 g["peso"] = 100 * g.peso / g.peso.sum()
                 g["desvio_pp"] = g.proj_A - g.base_A
@@ -293,6 +316,7 @@ class Estado:
                 "base_nacional": self.base_nacional,
                 "historico": self.historico[-500:],
                 "regioes": agrega("regiao"), "ufs": agrega("uf"),
+                "mapa": mapa_payload(d),
                 "trajetoria": trajetoria(d, self.snapshot, tse["pct_secoes"], self.inicio_uf, len(self.historico)),
                 "mais_A": mun(com.nlargest(10, "desvio_pp")), "mais_B": mun(com.nsmallest(10, "desvio_pp")),
                 "premissas": self.premissas, "nomes_terc": NOMES_TERC,

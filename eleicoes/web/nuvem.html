@@ -6,7 +6,8 @@
   --page: #f7f8f9; --surface: #ffffff; --ink: #0d1116; --ink-2: #4b535c; --muted: #858c94;
   --grid: #e3e6ea; --axis: #c4c9cf; --ring: rgba(13,17,22,0.10);
   --A: #2a78d6; --A-soft: rgba(42,120,214,0.16); --B: #e34948; --B-soft: rgba(227,73,72,0.16);
-  --neutral: #858c94; --N-soft: rgba(133,140,148,0.20); --ok: #006300; --okbg: #e3f4e3; --crit: #d03b3b; --warn-bg: #fff4d6; --info-bg: #e8f1fc;
+  --neutral: #858c94; --N-soft: rgba(133,140,148,0.20);
+  --m0: #e9ecef; --m1: #b9c2cc; --m2: #7f8b98; --m3: #36404c; --A2: #9ec5f4; --B2: #f2aaa9; --ok: #006300; --okbg: #e3f4e3; --crit: #d03b3b; --warn-bg: #fff4d6; --info-bg: #e8f1fc;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
@@ -16,6 +17,7 @@
     --grid: #2a2e33; --axis: #3a3f45; --ring: rgba(255,255,255,0.10);
     --A: #3987e5; --A-soft: rgba(57,135,229,0.24); --B: #e66767; --B-soft: rgba(230,103,103,0.24);
     --ok: #3cc93c; --okbg: #15301a; --warn-bg: #3a2f10; --info-bg: #152538;
+    --m0: #262a2f; --m1: #4b545e; --m2: #7f8b98; --m3: #cdd5de; --A2: #2f5f99; --B2: #8f3d3d;
   }
 }
 :root[data-theme="dark"] {
@@ -24,6 +26,7 @@
   --grid: #2a2e33; --axis: #3a3f45; --ring: rgba(255,255,255,0.10);
   --A: #3987e5; --A-soft: rgba(57,135,229,0.24); --B: #e66767; --B-soft: rgba(230,103,103,0.24);
   --ok: #3cc93c; --okbg: #15301a; --warn-bg: #3a2f10; --info-bg: #152538;
+  --m0: #262a2f; --m1: #4b545e; --m2: #7f8b98; --m3: #cdd5de; --A2: #2f5f99; --B2: #8f3d3d;
 }
 * { box-sizing: border-box; }
 body { background: var(--page); color: var(--ink); font: 15px/1.45 var(--font); }
@@ -39,6 +42,12 @@ nav button { background: none; border: 0; padding: 10px 14px; font: inherit; col
 nav button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
 nav button:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--A); outline-offset: 2px; }
 .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 12px; }
+.rowMap { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); margin-bottom: 12px; }
+@media (max-width: 900px) { .rowMap { grid-template-columns: 1fr; } }
+#mapa canvas { display: block; width: 100%; cursor: crosshair; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; padding: 5px 10px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.seg button.on { background: var(--ink); color: var(--page); }
 .row2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); margin-bottom: 12px; }
 .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 14px 16px; min-width: 0; }
 .card h2 { font-size: 14px; margin: 0 0 8px; font-weight: 620; text-wrap: balance; }
@@ -127,6 +136,24 @@ input[type=number] { font: inherit; width: 66px; padding: 4px 6px; border: 1px s
     <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span><span><span class="sw" style="background:var(--N-soft);border:1px dashed var(--neutral)"></span>Trajetória esperada da parcial (faixa = cenários de ordem de chegada)</span><span><span class="sw" style="background:var(--A);border-radius:50%"></span>Resultado final projetado (IC 90%)</span></div>
     <div class="chart" id="chHist"></div>
     <div class="note">Eixo horizontal: % de seções totalizadas. Acima de 50% Flávio vence; abaixo, Lula. A partir de 3% apurado, a linha tracejada mostra como a parcial do TSE deve andar daqui até 100%: o que falta em cada município vem do modelo, e a ordem de chegada vem do ritmo de apuração de cada UF. A faixa cinza cobre os cenários para as UFs que ainda não começaram (entrando já ou por último). A curva pode errar; o ponto final é a projeção e é o que importa.</div>
+  </div>
+  <div class="rowMap">
+    <div class="card">
+      <h2>Mapa da apuração por município</h2>
+      <div class="ctl" style="margin-bottom:8px">
+        <div class="seg" role="group" aria-label="O que o mapa mostra">
+          <button data-modo="apuracao" class="on">Urnas apuradas</button><button data-modo="parcial">Quem lidera na parcial</button><button data-modo="projecao">Projeção do modelo</button>
+        </div>
+      </div>
+      <div class="legend" id="mapaLeg"></div>
+      <div id="mapa" class="chart"></div>
+      <div class="note" id="mapaMsg">Carregando o mapa…</div>
+    </div>
+    <div class="card">
+      <h2>Apuração por estado: onde ainda faltam votos</h2>
+      <div class="legend"><span><span class="sw" style="background:var(--m3)"></span>% do eleitorado já apurado</span><span>à direita: votos válidos que ainda faltam (estimativa do modelo)</span></div>
+      <div class="chart" id="chFalta"></div>
+    </div>
   </div>
   <div class="row2">
     <div class="card">
@@ -411,6 +438,8 @@ function renderApuracao() {
   if (E.tse.pct_secoes > 0 && E.tse.pct_secoes < 2) av.push("Menos de 2% das seções: a projeção ainda depende bastante das premissas.");
   $("#banner").hidden = !av.length; $("#banner").innerHTML = av.join("<br>");
   chartHist(E);
+  desenharMapa(E);
+  barrasFalta(E);
   divBars("#chUF", E.ufs.slice().sort((a, b) => b.desvio_pp - a.desvio_pp), "desvio_pp", "nome", r => `<b>${r.nome}</b><br>Projeção Flávio: ${pct(r.proj_A)}<br>Base 1º turno: ${pct(r.base_A)}<br>Desvio: ${sgn(r.desvio_pp, 2)} p.p.<br>Apurado: ${pct(r.apurado, 0)} · peso ${pct(r.peso)}`);
   const cols = [["", r => r.nome], ["Peso", r => pct(r.peso)], ["Apurado", r => pct(r.apurado, 0)], ["Base 1ºT", r => pct(r.base_A)],
     ["Flávio proj.", r => `<b>${pct(r.proj_A)}</b>`], ["Desvio p.p.", r => sgn(r.desvio_pp, 2)]];
@@ -419,6 +448,70 @@ function renderApuracao() {
   const mc = [["Município", r => esc(r.municipio)], ["Apurado", r => pct(r.apurado, 0)], ["Base", r => pct(r.base_A)], ["Proj.", r => pct(r.proj_A)], ["Desvio", r => sgn(r.desvio_pp, 1)]];
   table("#tbMA", mc, E.mais_A || [], "sem municípios apurados"); table("#tbMB", mc, E.mais_B || [], "sem municípios apurados");
 }
+
+
+// ------------------------------------------------------- mapa municipal
+let MAPA = null, mapaModo = "apuracao", mapaPaths = null, mapaBox = null, ufPaths = null, mapaGeo = null;
+const hitCtx = document.createElement("canvas").getContext("2d");
+async function carregarMapa() {
+  try {
+    MAPA = await (await fetch("mapa.json")).json();
+    const mk = rings => { const p = new Path2D(); rings.forEach(r => { p.moveTo(r[0], r[1]); for (let i = 2; i < r.length; i += 2) p.lineTo(r[i], r[i + 1]); p.closePath(); }); return p; };
+    mapaPaths = MAPA.mun.map(mk); ufPaths = Object.values(MAPA.uf).map(mk);
+    mapaBox = MAPA.mun.map(rings => { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; rings.forEach(r => { for (let i = 0; i < r.length; i += 2) { a = Math.min(a, r[i]); c = Math.max(c, r[i]); b = Math.min(b, r[i + 1]); d = Math.max(d, r[i + 1]); } }); return [a, b, c, d]; });
+    render();
+  } catch (e) { $("#mapaMsg").textContent = "Não consegui carregar o mapa."; }
+}
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { mapaModo = b.dataset.modo; document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b)); render(); });
+function mapaDados(E) { const n = MAPA.mun.length; return E.mapa && E.mapa.pi && E.mapa.pi.length === n ? E.mapa : { pi: new Array(n).fill(0), a: new Array(n).fill(-1), p: new Array(n).fill(-1) }; }
+function corMun(M, i) {
+  const pi = M.pi[i];
+  if (mapaModo === "apuracao") return pi <= 0 ? "--m0" : pi < 50 ? "--m1" : pi < 100 ? "--m2" : "--m3";
+  const v = mapaModo === "parcial" ? (pi > 0 ? M.a[i] : -1) : M.p[i];
+  if (v < 0) return "--m0";
+  return v >= 60 ? "--A" : v >= 50 ? "--A2" : v >= 40 ? "--B2" : "--B";
+}
+function desenharMapa(E) {
+  if (!MAPA) return;
+  const box = $("#mapa"); const w = Math.max(box.clientWidth, 260), h = Math.round(w * MAPA.h / MAPA.w), dpr = window.devicePixelRatio || 1;
+  let cv = box.querySelector("canvas");
+  if (!cv) { cv = document.createElement("canvas"); box.appendChild(cv); cv.addEventListener("mousemove", mapaHover); cv.addEventListener("mouseleave", hideTip); }
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px";
+  const ctx = cv.getContext("2d"), k = dpr * w / MAPA.w; ctx.setTransform(k, 0, 0, k, 0, 0); ctx.clearRect(0, 0, MAPA.w, MAPA.h);
+  const M = mapaDados(E); mapaGeo = { w, M };
+  const grupos = {}; for (let i = 0; i < mapaPaths.length; i++) (grupos[corMun(M, i)] ||= []).push(i);
+  for (const [cor, idx] of Object.entries(grupos)) { ctx.fillStyle = css(cor); idx.forEach(i => ctx.fill(mapaPaths[i])); }
+  ctx.strokeStyle = css("--surface"); ctx.lineWidth = 0.35 * MAPA.w / w; mapaPaths.forEach(p => ctx.stroke(p));
+  ctx.strokeStyle = css("--ink-2"); ctx.lineWidth = 1.1 * MAPA.w / w; ufPaths.forEach(p => ctx.stroke(p));
+  const leg = mapaModo === "apuracao" ? [["--m0", "sem urnas apuradas"], ["--m1", "1–49%"], ["--m2", "50–99%"], ["--m3", "100% apurado"]] :
+    [["--B", "Lula ≥ 60%"], ["--B2", "Lula 50–60%"], ["--A2", "Flávio 50–60%"], ["--A", "Flávio ≥ 60%"], ["--m0", "sem dados"]];
+  $("#mapaLeg").innerHTML = leg.map(([c, t]) => `<span><span class="sw" style="background:var(${c})"></span>${t}</span>`).join("");
+  const com = M.pi.filter(v => v > 0).length, comp = M.pi.filter(v => v >= 100).length;
+  $("#mapaMsg").textContent = mapaModo === "projecao" ? "Projeção do modelo para o resultado final de cada município (o que já foi apurado mais o que o modelo espera do restante)." :
+    `${com.toLocaleString("pt-BR")} de ${M.pi.length.toLocaleString("pt-BR")} municípios com urnas apuradas, ${comp.toLocaleString("pt-BR")} completos. Passe o mouse para ver cada município. Exterior e 7 municípios criados após 2010 não aparecem no mapa, mas entram nos números.`;
+}
+function mapaHover(ev) {
+  if (!mapaGeo) return; const f = MAPA.w / mapaGeo.w, x = ev.offsetX * f, y = ev.offsetY * f; const M = mapaGeo.M;
+  for (let i = 0; i < mapaPaths.length; i++) { const b = mapaBox[i]; if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
+    if (hitCtx.isPointInPath(mapaPaths[i], x, y)) { const uf = MAPA.chaves[i].split("-")[0];
+      showTip(ev, `<b>${esc(MAPA.nomes[i])} (${uf})</b><br>Urnas apuradas: ${M.pi[i]}%` + (M.pi[i] > 0 && M.a[i] >= 0 ? `<br>Parcial: Flávio ${M.a[i]}% × Lula ${100 - M.a[i]}%` : "") + (M.p[i] >= 0 ? `<br>Projeção final: Flávio ${M.p[i]}% × Lula ${100 - M.p[i]}%` : ""));
+      return; } }
+  hideTip();
+}
+const votos = v => v >= 1e6 ? f1(v / 1e6) + " mi" : Math.round(v / 1e3).toLocaleString("pt-BR") + " mil";
+function barrasFalta(E) {
+  const rows = E.ufs.map(r => ({ ...r, nome: r.nome === "ZZ" ? "Exterior" : r.nome, restante: r.restante ?? r.peso / 100 * E.proj.validos_proj * (1 - r.apurado / 100) }))
+    .sort((a, b) => b.restante - a.restante);
+  const rh = 21, m = { l: 66, r: 150, t: 4, b: 6 }, h = m.t + m.b + rows.length * rh; const [s, w] = svgIn("#chFalta", h); const iw = w - m.l - m.r;
+  const totalFalta = rows.reduce((a, r) => a + r.restante, 0);
+  rows.forEach((r, i) => { const y = m.t + i * rh + 3, bh = rh - 7;
+    el("text", { x: m.l - 8, y: y + bh / 2 + 4, "text-anchor": "end", class: "lbl" }, s).textContent = r.nome;
+    el("rect", { x: m.l, y, width: iw, height: bh, rx: 3, fill: css("--m0") }, s);
+    if (r.apurado > 0) el("rect", { x: m.l, y, width: Math.max(iw * r.apurado / 100, 2), height: bh, rx: 3, fill: css("--m3") }, s);
+    el("text", { x: m.l + iw + 6, y: y + bh / 2 + 4, class: "lbl" }, s).textContent = `${pct(r.apurado, 0)} · faltam ${votos(r.restante)}`;
+    hover(el("rect", { x: 0, y: y - 3, width: w, height: rh, fill: "transparent" }, s), () => `<b>${r.nome}</b><br>Apurado: ${pct(r.apurado, 1)} do eleitorado<br>Faltam ≈ ${votos(r.restante)} votos válidos (${pct(100 * r.restante / Math.max(totalFalta, 1), 1)} do que falta no país)<br>Peso no total: ${pct(r.peso)} · projeção Flávio ${pct(r.proj_A)}`); });
+}
+carregarMapa();
 
 // ------------------------------------------------------- premissas
 let premInit = false;
