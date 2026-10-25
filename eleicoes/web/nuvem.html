@@ -101,6 +101,7 @@ input[type=number] { font: inherit; width: 66px; padding: 4px 6px; border: 1px s
   <div class="sub"><span id="pillStatus" class="pill"><span class="dot"></span><span id="pillTxt">carregando…</span></span><span id="upd"></span></div>
   <nav>
     <button data-tab="apuracao" class="on">Apuração</button>
+    <button data-tab="governadores">Governadores</button>
     <button data-tab="premissas">Premissas</button>
     <button data-tab="pesquisas">Pesquisas</button>
     <button data-tab="analise">Histórico TSE</button>
@@ -180,6 +181,44 @@ input[type=number] { font: inherit; width: 66px; padding: 4px 6px; border: 1px s
     <div class="card"><h2>Municípios votando mais em Lula que a base</h2><div class="scroll"><table id="tbMB"></table></div></div>
   </div>
   <div class="note">Fonte: feed oficial do TSE (resultados.tse.jus.br, eleição 6258), município a município, coletado e projetado pelo Claude Code. O TSE não divulga zona eleitoral durante a apuração.</div>
+</section>
+
+
+<!-- ============================ GOVERNADORES ============================ -->
+<section class="tab" id="governadores" hidden>
+  <div class="card" style="margin-bottom:12px">
+    <h2>2º turno para governador</h2>
+    <div class="ctl"><div class="seg" id="govSel" role="group" aria-label="Estado"></div><span class="note" id="gov1t"></span></div>
+    <div class="note">Mesmo modelo do presidente, estado por estado: a linha de base de cada município é o 1º turno de governador, com os votos dos eliminados divididos 50/50, e o desvio é aprendido com as urnas já apuradas no próprio estado. A coleta começa junto com a do presidente, pelo botão da aba Apuração.</div>
+  </div>
+  <div class="row">
+    <div class="card"><div class="k"><span class="sw" style="background:var(--A)"></span><span id="gAn"></span> · projeção final</div><div class="big" id="gA">–</div><div class="note" id="gAic"></div></div>
+    <div class="card"><div class="k"><span class="sw" style="background:var(--B)"></span><span id="gBn"></span> · projeção final</div><div class="big" id="gB">–</div><div class="note" id="gBic"></div></div>
+    <div class="card"><div class="k">Probabilidade de vitória</div><div class="mid" style="margin-top:6px"><span id="gPA">–</span> <span class="muted" style="font-size:14px">×</span> <span id="gPB">–</span></div><div class="note" id="gPn"></div></div>
+    <div class="card"><div class="k">Apuração TSE no estado</div><div class="mid" style="margin-top:6px" id="gSec">–</div><div class="note" id="gPar"></div></div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <h2 id="gHistT">Projeção ao longo da apuração</h2>
+    <div id="gDiff" class="diffbox"></div>
+    <div class="legend"><span><span class="sw" style="background:var(--A)"></span><span id="gLegA"></span></span><span><span class="sw" style="background:var(--B)"></span><span id="gLegB"></span></span>
+      <span><span class="ln"></span>projeção do resultado final (faixa = IC 90%)</span><span><span class="ln fina"></span>parcial do TSE</span><span><span class="ln trac"></span>trajetória esperada da parcial</span></div>
+    <div class="chart" id="gHist"></div>
+  </div>
+  <div class="rowMap">
+    <div class="card">
+      <h2>Mapa do estado por município</h2>
+      <div class="ctl" style="margin-bottom:8px"><div class="seg" id="gModo" role="group" aria-label="O que o mapa mostra">
+        <button data-modo="apuracao" class="on">Urnas apuradas</button><button data-modo="parcial">Quem lidera na parcial</button><button data-modo="projecao">Projeção do modelo</button></div></div>
+      <div class="legend" id="gMapaLeg"></div>
+      <div id="gMapa" class="chart"></div>
+      <div class="note" id="gMapaMsg"></div>
+    </div>
+    <div class="card">
+      <h2>Municípios que mais se afastam do 1º turno</h2>
+      <h3 id="gTA"></h3><div class="scroll"><table id="gMA"></table></div>
+      <h3 id="gTB"></h3><div class="scroll"><table id="gMB"></table></div>
+    </div>
+  </div>
 </section>
 
 <!-- ============================ PREMISSAS ============================ -->
@@ -326,9 +365,9 @@ function drawTraj(s, E, X, Y) {
   }
   return true;
 }
-function drawFinal(s, E, X, Y, w) {
+function drawFinal(s, E, X, Y, w, nA = "Flávio", nB = "Lula") {
   const p = E.proj, xf = X(100), aCima = p.A >= 50;
-  for (const [cor, v, lo, hi, nome, cima, dx] of [["--A", p.A, p.A_ic90[0], p.A_ic90[1], "Flávio", aCima, -4], ["--B", 100 - p.A, 100 - p.A_ic90[1], 100 - p.A_ic90[0], "Lula", !aCima, 4]]) {
+  for (const [cor, v, lo, hi, nome, cima, dx] of [["--A", p.A, p.A_ic90[0], p.A_ic90[1], nA, aCima, -4], ["--B", 100 - p.A, 100 - p.A_ic90[1], 100 - p.A_ic90[0], nB, !aCima, 4]]) {
     el("line", { x1: xf + dx, x2: xf + dx, y1: Y(hi), y2: Y(lo), stroke: css(cor), "stroke-width": 3, "stroke-linecap": "round" }, s);
     el("circle", { cx: xf + dx, cy: Y(v), r: 6, fill: css(cor), stroke: css("--surface"), "stroke-width": 2 }, s);
     el("text", { x: xf - 10, y: cima ? Y(hi) - 8 : Y(lo) + 16, "text-anchor": "end", class: "lbl", "font-weight": "600" }, s).textContent = `final: ${nome} ${pct(v, 2)}`;
@@ -336,18 +375,18 @@ function drawFinal(s, E, X, Y, w) {
 }
 
 // ------------------------------------------------- caixa da diferença
-function caixaDiferenca(E) {
+function caixaDiferenca(E, id = "#diffBox", nA = "Flávio", nB = "Lula") {
   const p = E.proj, d = 2 * p.A - 100, dlo = 2 * p.A_ic90[0] - 100, dhi = 2 * p.A_ic90[1] - 100, V = p.validos_proj;
-  const lider = d >= 0 ? "Flávio" : "Lula", ad = Math.abs(d), box = $("#diffBox");
+  const lider = d >= 0 ? nA : nB, ad = Math.abs(d), box = $(id);
   box.style.background = css(d >= 0 ? "--A-soft" : "--B-soft");
-  const lado = x => x >= 0 ? "Flávio" : "Lula";
+  const lado = x => x >= 0 ? nA : nB;
   const ic = (dlo > 0 || dhi < 0)
     ? `IC 90%: ${lider} +${f1(Math.min(Math.abs(dlo), Math.abs(dhi)))} a +${f1(Math.max(Math.abs(dlo), Math.abs(dhi)))} p.p. (${votosAbs(Math.min(Math.abs(dlo), Math.abs(dhi)) / 100 * V)} a ${votosAbs(Math.max(Math.abs(dlo), Math.abs(dhi)) / 100 * V)} votos)`
     : `IC 90%: de ${lado(dlo)} +${f1(Math.abs(dlo))} p.p. (${votosAbs(Math.abs(dlo) / 100 * V)} votos) a ${lado(dhi)} +${f1(Math.abs(dhi))} p.p. (${votosAbs(Math.abs(dhi) / 100 * V)} votos): o empate ainda está dentro do intervalo`;
   let parc = "Parcial do TSE: sem votos apurados ainda.";
   if (E.tse.parcial_A != null && E.tse.votos_apurados) {
     const dp = 2 * E.tse.parcial_A - 100, dv = dp / 100 * E.tse.votos_apurados;
-    parc = `Agora na parcial: ${dp >= 0 ? "Flávio" : "Lula"} +${f2(Math.abs(dp))} p.p. · ${dv >= 0 ? "Flávio" : "Lula"} +${votosAbs(Math.abs(dv))} votos`;
+    parc = `Agora na parcial: ${dp >= 0 ? nA : nB} +${f2(Math.abs(dp))} p.p. · ${dv >= 0 ? nA : nB} +${votosAbs(Math.abs(dv))} votos`;
   }
   box.innerHTML = `<div class="k">Diferença projetada no resultado final</div>
     <div class="diffrow"><span class="mid">${lider} +${f2(ad)} p.p.</span><span class="mid">${lider} +${votosAbs(ad / 100 * V)} votos</span></div>
@@ -357,9 +396,9 @@ function caixaDiferenca(E) {
 function votosAbs(v) { return v >= 1e6 ? f2(v / 1e6) + " milhões" : v >= 1e3 ? Math.round(v / 1e3).toLocaleString("pt-BR") + " mil" : Math.round(v).toLocaleString("pt-BR"); }
 
 // ------------------------------------------------- gráfico: histórico
-function chartHist(E) {
+function chartHist(E, id = "#chHist", nA = "Flávio", nB = "Lula") {
   const H = E.historico || [];
-  const [s, w] = svgIn("#chHist", 300);
+  const [s, w] = svgIn(id, 300);
   const m = { l: 40, r: 22, t: 12, b: 28 }, iw = w - m.l - m.r, ih = 300 - m.t - m.b;
   const TT = E.trajetoria && E.trajetoria.x && E.tse.pct_secoes >= MIN_TRAJ ? E.trajetoria : { lo: [], hi: [] };
   const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).concat(TT.lo, TT.hi, [E.proj.A_ic90[0], E.proj.A_ic90[1]]).filter(v => v != null);
@@ -372,7 +411,7 @@ function chartHist(E) {
   if (!H.length) {
     el("text", { x: m.l + iw / 2, y: m.t + ih / 2 - 10, "text-anchor": "middle", class: "lbl" }, s).textContent = "Aguardando as primeiras urnas (ou aperte Ver simulação).";
     el("text", { x: m.l + iw / 2, y: m.t + ih / 2 + 8, "text-anchor": "middle", class: "lbl" }, s).textContent = "A curva projetada aparece a partir de 3% das seções.";
-    drawFinal(s, E, X, Y, w); return;
+    drawFinal(s, E, X, Y, w, nA, nB); return;
   }
   for (const [cor, soft, f] of [["--A", "--A-soft", v => v], ["--B", "--B-soft", lulaDe]]) {
     const band = H.map(h => `${X(h.pct_secoes)},${Y(f(h.hi))}`).join(" ") + " " + H.slice().reverse().map(h => `${X(h.pct_secoes)},${Y(f(h.lo))}`).join(" ");
@@ -383,7 +422,7 @@ function chartHist(E) {
   drawTraj(s, E, X, Y);
   for (const [cor, f] of [["--A", v => v], ["--B", lulaDe]])
     el("polyline", { points: H.map(h => `${X(h.pct_secoes)},${Y(f(h.proj_A))}`).join(" "), fill: "none", stroke: css(cor), "stroke-width": 2.5, "stroke-linejoin": "round" }, s);
-  drawFinal(s, E, X, Y, w);
+  drawFinal(s, E, X, Y, w, nA, nB);
   const u = H[H.length - 1];
   for (const [cor, v, dy] of [["--A", u.proj_A, u.proj_A >= 50 ? -9 : 17], ["--B", 100 - u.proj_A, u.proj_A >= 50 ? 17 : -9]]) {
     el("circle", { cx: X(u.pct_secoes), cy: Y(v), r: 4, fill: css(cor), stroke: css("--surface"), "stroke-width": 2 }, s);
@@ -394,7 +433,7 @@ function chartHist(E) {
   hit.addEventListener("mousemove", ev => { const r = s.getBoundingClientRect(); const xv = (ev.clientX - r.left - m.l) / iw * 100;
     let best = H[0]; H.forEach(h => { if (Math.abs(h.pct_secoes - xv) < Math.abs(best.pct_secoes - xv)) best = h; });
     cross.setAttribute("x1", X(best.pct_secoes)); cross.setAttribute("x2", X(best.pct_secoes)); cross.setAttribute("visibility", "visible");
-    showTip(ev, `<b>${esc(best.hora)}</b> · ${pct(best.pct_secoes, 2)} das seções<br>Projeção: <b>Flávio ${pct(best.proj_A, 2)}</b> × <b>Lula ${pct(100 - best.proj_A, 2)}</b><br>Diferença projetada: ${best.proj_A >= 50 ? "Flávio" : "Lula"} +${f2(Math.abs(2 * best.proj_A - 100))} p.p.<br>Parcial TSE: Flávio ${pct(best.parcial_A, 2)} × Lula ${pct(lulaDe(best.parcial_A), 2)}<br>P(Flávio vence): ${pct(100 * best.prob_A)}`); });
+    showTip(ev, `<b>${esc(best.hora)}</b> · ${pct(best.pct_secoes, 2)} das seções<br>Projeção: <b>${nA} ${pct(best.proj_A, 2)}</b> × <b>${nB} ${pct(100 - best.proj_A, 2)}</b><br>Diferença projetada: ${best.proj_A >= 50 ? nA : nB} +${f2(Math.abs(2 * best.proj_A - 100))} p.p.<br>Parcial TSE: ${nA} ${pct(best.parcial_A, 2)} × ${nB} ${pct(lulaDe(best.parcial_A), 2)}<br>P(${nA} vence): ${pct(100 * best.prob_A)}`); });
   hit.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
 }
 
@@ -556,6 +595,73 @@ function barrasFalta(E) {
 }
 carregarMapa();
 
+
+// ------------------------------------------------------- governadores
+let GV = DADOS.gov, govLive = null, govUF = "AC", govModo = "apuracao";
+try { govUF = localStorage.getItem("govUF") || "AC"; } catch (e) {}
+const GOV_UFS = ["AC", "AM", "DF", "ES", "RN", "TO"];
+$("#govSel").innerHTML = GOV_UFS.map(u => `<button data-uf="${u}">${u}</button>`).join("");
+document.querySelectorAll("#govSel button").forEach(b => b.onclick = () => { govUF = b.dataset.uf; try { localStorage.setItem("govUF", govUF); } catch (e) {} render(); });
+document.querySelectorAll("#gModo button").forEach(b => b.onclick = () => { govModo = b.dataset.modo; document.querySelectorAll("#gModo button").forEach(x => x.classList.toggle("on", x === b)); render(); });
+const curto = n => n.replace(/^Professora? /, "").replace(/ (Do|Da|De|Dos|Das) /g, (m, x) => " " + x.toLowerCase() + " ");
+function corG(M, j) {
+  const pi = M.pi[j];
+  if (govModo === "apuracao") return pi <= 0 ? "--m0" : pi < 50 ? "--m1" : pi < 100 ? "--m2" : "--m3";
+  const v = govModo === "parcial" ? (pi > 0 ? M.a[j] : -1) : M.p[j];
+  if (v < 0) return "--m0";
+  return v >= 60 ? "--A" : v >= 50 ? "--A2" : v >= 40 ? "--B2" : "--B";
+}
+let gGeo = null;
+function mapaUF(E, nA, nB) {
+  if (!MAPA) { $("#gMapaMsg").textContent = "Carregando o mapa…"; return; }
+  const idx = E.mapa_idx, M = E.mapa; let a = 1e9, b = 1e9, c = -1e9, d = -1e9;
+  idx.forEach(i => { const q = mapaBox[i]; a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[2]); d = Math.max(d, q[3]); });
+  const box = $("#gMapa"); const w = Math.max(box.clientWidth, 260), bw = c - a, bh = d - b;
+  const k0 = Math.min(w / bw, 440 / bh), h = Math.round(bh * k0), dpr = window.devicePixelRatio || 1;
+  let cv = box.querySelector("canvas");
+  if (!cv) { cv = document.createElement("canvas"); box.appendChild(cv); cv.addEventListener("mousemove", gHover); cv.addEventListener("mouseleave", hideTip); }
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px";
+  const ox = (w - bw * k0) / 2, ctx = cv.getContext("2d"); ctx.setTransform(dpr * k0, 0, 0, dpr * k0, dpr * (ox - a * k0), -dpr * b * k0);
+  ctx.clearRect(a - 50, b - 50, bw + 100, bh + 100);
+  idx.forEach((i, j) => { ctx.fillStyle = css(corG(M, j)); ctx.fill(mapaPaths[i]); });
+  ctx.strokeStyle = css("--surface"); ctx.lineWidth = 0.8 / k0; idx.forEach(i => ctx.stroke(mapaPaths[i]));
+  gGeo = { idx, M, k0, ox, a, b, nA, nB };
+  const leg = govModo === "apuracao" ? [["--m0", "sem urnas apuradas"], ["--m1", "1–49%"], ["--m2", "50–99%"], ["--m3", "100% apurado"]] :
+    [["--B", `${nB} ≥ 60%`], ["--B2", `${nB} 50–60%`], ["--A2", `${nA} 50–60%`], ["--A", `${nA} ≥ 60%`], ["--m0", "sem dados"]];
+  $("#gMapaLeg").innerHTML = leg.map(([cc, t]) => `<span><span class="sw" style="background:var(${cc})"></span>${t}</span>`).join("");
+  const com = M.pi.filter(v => v > 0).length, comp = M.pi.filter(v => v >= 100).length;
+  $("#gMapaMsg").textContent = `${com} de ${M.pi.length} municípios com urnas apuradas, ${comp} completos.` + (idx.length === 1 ? " O DF é um único município no feed do TSE; a projeção usa só o ritmo e o desvio da própria parcial." : "");
+}
+function gHover(ev) {
+  if (!gGeo) return; const g = gGeo, x = (ev.offsetX - g.ox) / g.k0 + g.a, y = ev.offsetY / g.k0 + g.b;
+  for (let j = 0; j < g.idx.length; j++) { const i = g.idx[j], q = mapaBox[i]; if (x < q[0] || x > q[2] || y < q[1] || y > q[3]) continue;
+    if (hitCtx.isPointInPath(mapaPaths[i], x, y)) { const M = g.M;
+      showTip(ev, `<b>${esc(MAPA.nomes[i])}</b><br>Urnas apuradas: ${M.pi[j]}%` + (M.pi[j] > 0 && M.a[j] >= 0 ? `<br>Parcial: ${g.nA} ${M.a[j]}% × ${g.nB} ${100 - M.a[j]}%` : "") + (M.p[j] >= 0 ? `<br>Projeção final: ${g.nA} ${M.p[j]}% × ${g.nB} ${100 - M.p[j]}%` : "")); return; } }
+  hideTip();
+}
+function renderGov() {
+  const G = govLive || GV; if (!G || !G.ufs) return;
+  document.querySelectorAll("#govSel button").forEach(b => b.classList.toggle("on", b.dataset.uf === govUF));
+  const E = G.ufs[govUF], N = E.nomes, nA = curto(N.A), nB = curto(N.B), p = E.proj;
+  $("#gAn").textContent = `${N.A} (${N.partido_A})`; $("#gBn").textContent = `${N.B} (${N.partido_B})`;
+  $("#gLegA").textContent = N.A; $("#gLegB").textContent = N.B;
+  $("#gA").textContent = pct(p.A, 2); $("#gB").textContent = pct(p.B, 2);
+  $("#gAic").textContent = `IC 90%: ${f2(p.A_ic90[0])} – ${f2(p.A_ic90[1])}`; $("#gBic").textContent = `IC 90%: ${f2(100 - p.A_ic90[1])} – ${f2(100 - p.A_ic90[0])}`;
+  const pp = x => x > 0.999 ? "> 99,9%" : x < 0.001 ? "< 0,1%" : pct(100 * x);
+  $("#gPA").textContent = pp(p.prob_A); $("#gPB").textContent = pp(1 - p.prob_A); $("#gPn").textContent = `${nA} × ${nB}`;
+  $("#gSec").textContent = pct(E.tse.pct_secoes, 2) + " das seções";
+  $("#gPar").innerHTML = E.tse.parcial_A == null ? `Sem votos apurados: projeção = 1º turno com eliminados divididos 50/50 (base ${pct(E.base, 1)} para ${nA}).` :
+    `Parcial: ${nA} ${pct(E.tse.parcial_A, 2)} × ${nB} ${pct(100 - E.tse.parcial_A, 2)}<br>${p.municipios_com_dados} de ${E.municipios} municípios com dados`;
+  $("#gov1t").textContent = `1º turno: ${N.A} ${f1(N.pct1t_A)}% · ${N.B} ${f1(N.pct1t_B)}% · ` + E.outros_1t.map(o => `${String(o.NM_URNA_CANDIDATO).toLowerCase().replace(/(^|\s)\S/g, t => t.toUpperCase())} (${o.SG_PARTIDO}) ${f1(o.pct_validos_1t)}%`).join(" · ");
+  $("#gHistT").textContent = `${govUF}: projeção de ${nA} e ${nB} (% dos válidos) ao longo da apuração`;
+  caixaDiferenca(E, "#gDiff", nA, nB);
+  chartHist(E, "#gHist", nA, nB);
+  mapaUF(E, nA, nB);
+  $("#gTA").textContent = `Votando mais em ${nA} que a base`; $("#gTB").textContent = `Votando mais em ${nB} que a base`;
+  const mc = [["Município", r => esc(r.municipio)], ["Apurado", r => pct(r.apurado, 0)], ["Base", r => pct(r.base_A)], ["Proj.", r => pct(r.proj_A)], ["Desvio", r => sgn(r.desvio_pp, 1)]];
+  table("#gMA", mc, E.mais_A || [], "sem municípios apurados"); table("#gMB", mc, E.mais_B || [], "sem municípios apurados");
+}
+
 // ------------------------------------------------------- premissas
 let premInit = false;
 function baseDe(t, prior) {
@@ -684,7 +790,7 @@ function renderAnalise() {
 function render() {
   renderStatus();
   const aba = document.querySelector("nav button.on").dataset.tab;
-  try { ({ apuracao: renderApuracao, premissas: renderPremissas, pesquisas: renderPesquisas, analise: renderAnalise })[aba](); } catch (e) { console.error(e); }
+  try { ({ apuracao: renderApuracao, governadores: renderGov, premissas: renderPremissas, pesquisas: renderPesquisas, analise: renderAnalise })[aba](); } catch (e) { console.error(e); }
 }
 abrir(abaIni);
 let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 150); });
@@ -697,6 +803,7 @@ setInterval(renderStatus, 30000);
   if (!db) { render(); return; }
   const doc = (p, fn) => db.doc(p).onSnapshot(s => { fn(s.exists ? s.data() : null); render(); }, e => console.warn(p, e.code));
   doc("estado/atual", d => { if (d && d.proj) live = d; });
+  doc("estado/governadores", d => { if (d && d.ufs) govLive = d; });
   doc("pesquisas/resumo", d => { if (d && d.segundo_turno) PQ = d; });
   doc("controle/comando", d => comando = d);
   doc("controle/premissas", d => { premDoc = d; });

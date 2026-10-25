@@ -107,7 +107,8 @@ def demo(arq, passos=36):
 
 def pagina(modelo, saida, dados_dir):
     html = modelo.read_text()
-    blob = {k: json.loads((dados_dir / f"{k}.json").read_text()) for k in ("estado", "pesquisas", "analise")}
+    blob = {k: json.loads((dados_dir / f"{k}.json").read_text()) for k in ("estado", "pesquisas", "analise", "gov")
+            if (dados_dir / f"{k}.json").exists()}
     js = json.dumps(blob, ensure_ascii=False).replace("</", "<\\/")
     saida.write_text(html.replace("/*__DADOS__*/null", js))
     print("pagina", saida, len(html) + len(js))
@@ -122,6 +123,13 @@ def _controle():
 
 def loop(saida, intervalo):
     est = Estado(intervalo=intervalo, sims=3000)
+    try:
+        from .governadores import EstadoGov
+        gov = EstadoGov()
+    except Exception as exc:  # governadores nunca derrubam o presidente
+        print(f"GOV_INDISPONIVEL {exc}", flush=True)
+        gov = None
+    saida_gov = saida.with_name("estado_gov.json")
     ult_prem = None
     n = 0
     while True:
@@ -149,6 +157,15 @@ def loop(saida, intervalo):
         tmp = saida.with_suffix(".tmp")
         tmp.write_text(json.dumps(p, ensure_ascii=False))
         tmp.replace(saida)
+        if gov is not None:
+            try:
+                g = gov.rodada()
+                g["status"] = status
+                tmpg = saida_gov.with_suffix(".tmp")
+                tmpg.write_text(json.dumps(_arred(g), ensure_ascii=False))
+                tmpg.replace(saida_gov)
+            except Exception as exc:
+                print(f"GOV_ERRO {exc}", flush=True)
         pr = p["proj"]
         print(f"RODADA {n} secoes={p['tse']['pct_secoes']:.2f}% proj_A={pr['A']:.2f} "
               f"ic90={pr['A_ic90'][0]:.2f}-{pr['A_ic90'][1]:.2f} prob_A={pr['prob_A']:.3f} "

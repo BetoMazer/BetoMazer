@@ -5,6 +5,7 @@ Banco do painel (ArtifactData, mesma URL):
   estado/atual        projeção (escrito pelo Claude a cada rodada)
   pesquisas/resumo    aba de pesquisas (escrito pelo Claude)
   controle/comando    {acao: "aguardando" | "iniciar" | "parar", em} (escrito pelo botão)
+  estado/governadores 2º turno de governador (AC, AM, DF, ES, RN, TO), escrito junto com estado/atual
   controle/premissas  {transf: {cury, renan, caiado, zema, outros}, prior_A} (escrito pela aba Premissas)
 Toda escrita num documento existente exige if_version (a versão retornada na última leitura/escrita).
 
@@ -33,6 +34,7 @@ Se a Wikipédia bloquear, usar WebFetch/WebSearch para as pesquisas novas e incl
    Monitor: tail -F data/live/loop.log | grep --line-buffered -E "RODADA|PARADO|APURACAO_COMPLETA|Traceback|Error"
 4. A cada linha RODADA:
    - ArtifactData list controle -> regravar data/live/controle.json (premissas novas entram na rodada seguinte; acao "parar" encerra o loop).
-   - ArtifactData set estado/atual com file_path data/live/estado_db.json e if_version.
+   - ArtifactData batch: set estado/atual (data/live/estado_db.json) e set estado/governadores
+     (data/live/estado_gov.json), cada um com o seu if_version.
 5. Se o processo morrer: reiniciar o passo 3 (o histórico é recuperado de data/live/painel_historico_6258.csv).
 6. Encerrar quando aparecer APURACAO_COMPLETA (fazer uma última escrita) ou PARADO, ou às 23h30.
