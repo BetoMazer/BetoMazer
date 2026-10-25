@@ -70,6 +70,8 @@ class Parametros:
     k_tau: float = 30.0         # peso (em municípios) do prior de tau
 
 
+MIN_MUNICIPIOS = 30
+
 FEATURES_BASE = ["lA1", "bn1", "abst1", "swing_prev", "trend_prev", "log_aptos", "turnout_prev"]
 
 
@@ -202,6 +204,10 @@ class Modelo:
         n = (o.A + o.B).to_numpy()
         pi = o.pi.to_numpy()
         mask = (n >= 20) & (pi > 0)
+        # com pouquíssimos municípios apurados o desvio é ruído (ex.: 3 cidades
+        # com algumas centenas de votos): mantém a linha de base até haver dados
+        if mask.sum() < MIN_MUNICIPIOS:
+            mask = np.zeros_like(mask)
         self.mask = mask
         y = (o.A.to_numpy() + .5) / (n + 1)
         r = logit(y) - logit(self.s0)
