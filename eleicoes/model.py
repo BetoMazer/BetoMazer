@@ -206,7 +206,7 @@ class Modelo:
         mask = (n >= 20) & (pi > 0)
         # com pouquíssimos municípios apurados o desvio é ruído (ex.: 3 cidades
         # com algumas centenas de votos): mantém a linha de base até haver dados
-        if mask.sum() < MIN_MUNICIPIOS:
+        if mask.sum() < min(MIN_MUNICIPIOS, max(1, int(0.25 * len(mask)))):
             mask = np.zeros_like(mask)
         self.mask = mask
         y = (o.A.to_numpy() + .5) / (n + 1)
