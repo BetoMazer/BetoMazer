@@ -15,6 +15,7 @@ Uso:
 """
 import argparse
 import json
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -40,7 +41,7 @@ def _int(x):
 
 
 class ColetorTSE:
-    def __init__(self, eleicao=ELEICAO_T2_2026, workers=16, timeout=20):
+    def __init__(self, eleicao=ELEICAO_T2_2026, workers=10, timeout=20):
         self.eleicao = eleicao
         self.base = f"{RESULTADOS}/{CICLO_2026}/{eleicao}"
         self.s = requests.Session()
@@ -48,14 +49,19 @@ class ColetorTSE:
         self.s.mount("https://", ad)
         self.s.headers["User-Agent"] = "projecao-eleicoes/1.0 (pesquisa)"
         self.workers, self.timeout = workers, timeout
-        self.etag, self.cache = {}, {}
+        self.etag, self.cache, self.falhas = {}, {}, 0
         self.municipios = self._municipios()
 
     def _get(self, url, chave=None):
         h = {}
         if chave and chave in self.etag:
             h["If-None-Match"] = self.etag[chave]
-        r = self.s.get(url, headers=h, timeout=self.timeout)
+        for tentativa in range(6):
+            r = self.s.get(url, headers=h, timeout=self.timeout)
+            if r.status_code != 429:
+                break
+            # limite de requisições do TSE (janela de 1 s): espera e tenta de novo
+            time.sleep(float(r.headers.get("x-ratelimit-reset", 1) or 1) + random.random() * (1 + tentativa))
         if r.status_code == 304:
             return None
         r.raise_for_status()
@@ -92,11 +98,12 @@ class ColetorTSE:
             d = self._get(url, chave)
             if d is not None:
                 self.cache[chave] = self._parse(d)
-        except Exception as exc:  # mantém o último dado bom
-            print(f"  falha {chave}: {exc}")
+        except Exception:  # mantém o último dado bom
+            self.falhas += 1
         return (uf.upper(), int(mun)), self.cache.get(chave)
 
     def coletar(self):
+        self.falhas = 0
         with ThreadPoolExecutor(self.workers) as ex:
             res = list(ex.map(lambda um: self._municipio(*um), self.municipios))
         linhas = {k: v for k, v in res if v}

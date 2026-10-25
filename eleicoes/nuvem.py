@@ -169,7 +169,7 @@ def loop(saida, intervalo):
         pr = p["proj"]
         print(f"RODADA {n} secoes={p['tse']['pct_secoes']:.2f}% proj_A={pr['A']:.2f} "
               f"ic90={pr['A_ic90'][0]:.2f}-{pr['A_ic90'][1]:.2f} prob_A={pr['prob_A']:.3f} "
-              f"status={status} {est.erro or ''}", flush=True)
+              f"status={status} falhas={getattr(est.coletor, 'falhas', 0)} {est.erro or ''}", flush=True)
         if p["tse"]["pct_secoes"] >= 99.99:
             print("APURACAO_COMPLETA", flush=True)
         time.sleep(max(5, intervalo - (time.time() - t0)))

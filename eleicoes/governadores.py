@@ -9,7 +9,9 @@ Uso:
   python -m eleicoes.governadores preparar   # gera data/processed/governador_2026_t1.parquet
 """
 import json
+import random
 import sys
+import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -84,7 +86,7 @@ def _i(x):
 class EstadoGov:
     """Coleta e projeção dos 6 segundos turnos estaduais."""
 
-    def __init__(self, sims=2000, workers=12):
+    def __init__(self, sims=2000, workers=6):
         self.painel = pd.read_parquet(ARQ)
         cand = pd.read_csv(ARQ_CAND, dtype={"NR_CANDIDATO": str})
         self.fin = {uf: {p: g[g.papel == p].iloc[0] for p in ("A", "B")} for uf, g in cand.groupby("uf")}
@@ -109,7 +111,11 @@ class EstadoGov:
 
     def _get(self, url, chave):
         h = {"If-None-Match": self.etag[chave]} if chave in self.etag else {}
-        r = self.s.get(url, headers=h, timeout=20)
+        for tentativa in range(6):
+            r = self.s.get(url, headers=h, timeout=20)
+            if r.status_code != 429:
+                break
+            time.sleep(1 + random.random() * (1 + tentativa))
         if r.status_code == 304:
             return None
         r.raise_for_status()
