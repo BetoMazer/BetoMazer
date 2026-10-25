@@ -42,6 +42,10 @@ nav button { background: none; border: 0; padding: 10px 14px; font: inherit; col
 nav button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
 nav button:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--A); outline-offset: 2px; }
 .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 12px; }
+.diffbox { border-radius: 8px; padding: 10px 14px; margin: 4px 0 10px; }
+.diffrow { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-top: 4px; }
+.ln { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--ink-2); }
+.ln.fina { border-top-width: 1.5px; opacity: .6; } .ln.trac { border-top: 1.5px dashed var(--ink-2); opacity: .7; }
 .rowMap { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); margin-bottom: 12px; }
 @media (max-width: 900px) { .rowMap { grid-template-columns: 1fr; } }
 #mapa canvas { display: block; width: 100%; cursor: crosshair; }
@@ -132,10 +136,12 @@ input[type=number] { font: inherit; width: 66px; padding: 4px 6px; border: 1px s
       <div class="note" id="parcial"></div></div>
   </div>
   <div class="card" style="margin-bottom:12px">
-    <h2>Projeção de Flávio (% dos válidos) ao longo da apuração</h2>
-    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Projeção do modelo (faixa = IC 90%)</span><span><span class="sw" style="background:var(--neutral)"></span>Parcial divulgada pelo TSE</span><span><span class="sw" style="background:var(--N-soft);border:1px dashed var(--neutral)"></span>Trajetória esperada da parcial (faixa = cenários de ordem de chegada)</span><span><span class="sw" style="background:var(--A);border-radius:50%"></span>Resultado final projetado (IC 90%)</span></div>
+    <h2>Projeção de Flávio e Lula (% dos válidos) ao longo da apuração</h2>
+    <div id="diffBox" class="diffbox"></div>
+    <div class="legend"><span><span class="sw" style="background:var(--A)"></span>Flávio</span><span><span class="sw" style="background:var(--B)"></span>Lula</span>
+      <span><span class="ln"></span>linha grossa: projeção do resultado final (faixa = IC 90%)</span><span><span class="ln fina"></span>linha fina: parcial do TSE</span><span><span class="ln trac"></span>tracejada: trajetória esperada da parcial</span><span><span class="sw" style="background:var(--ink-2);border-radius:50%"></span>ponto em 100%: resultado final projetado</span></div>
     <div class="chart" id="chHist"></div>
-    <div class="note">Eixo horizontal: % de seções totalizadas. Acima de 50% Flávio vence; abaixo, Lula. A partir de 3% apurado, a linha tracejada mostra como a parcial do TSE deve andar daqui até 100%: o que falta em cada município vem do modelo, e a ordem de chegada vem do ritmo de apuração de cada UF. A faixa cinza cobre os cenários para as UFs que ainda não começaram (entrando já ou por último). A curva pode errar; o ponto final é a projeção e é o que importa.</div>
+    <div class="note">Eixo horizontal: % de seções totalizadas. A partir de 3% apurado, a linha tracejada mostra como a parcial do TSE deve andar daqui até 100%: o que falta em cada município vem do modelo, e a ordem de chegada vem do ritmo de apuração de cada UF. A faixa cinza cobre os cenários para as UFs que ainda não começaram (entrando já ou por último). A curva pode errar; o ponto final é a projeção e é o que importa.</div>
   </div>
   <div class="rowMap">
     <div class="card">
@@ -309,50 +315,86 @@ function hover(node, fn) { node.addEventListener("mousemove", ev => showTip(ev, 
 
 // trajetória esperada da parcial (a partir de MIN_TRAJ % das seções) + resultado final projetado
 const MIN_TRAJ = 3;
-function drawTraj(s, E, X, Y, m, iw, ih) {
-  const T = E.trajetoria, p = E.proj;
+const lulaDe = v => v == null ? null : 100 - v;
+function drawTraj(s, E, X, Y) {
+  const T = E.trajetoria;
   if (!T || !T.x || E.tse.pct_secoes < MIN_TRAJ) return false;
-  const band = T.x.map((x, i) => `${X(x)},${Y(T.hi[i])}`).join(" ") + " " + T.x.slice().reverse().map((x, i) => `${X(x)},${Y(T.lo[T.x.length - 1 - i])}`).join(" ");
-  el("polygon", { points: band, fill: css("--N-soft") }, s);
-  el("polyline", { points: T.x.map((x, i) => `${X(x)},${Y(T.centro[i])}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-dasharray": "5 4", "stroke-linejoin": "round" }, s);
-  const xf = X(100);
-  el("line", { x1: xf, x2: xf, y1: Y(p.A_ic90[1]), y2: Y(p.A_ic90[0]), stroke: css("--A"), "stroke-width": 3, "stroke-linecap": "round" }, s);
-  el("circle", { cx: xf, cy: Y(p.A), r: 6, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
-  // rótulo do lado oposto ao que a curva chega (não cruza a linha tracejada)
-  const vemDeCima = T.centro[Math.floor(T.centro.length * 0.85)] >= p.A;
-  const yl = vemDeCima ? Y(p.A_ic90[0]) + 18 : Y(p.A_ic90[1]) - 10;
-  el("text", { x: xf - 10, y: yl, "text-anchor": "end", class: "lbl", "font-weight": "600" }, s).textContent = `final projetado: Flávio ${pct(p.A, 2)}`;
+  for (const [cor, f] of [["--A", v => v], ["--B", lulaDe]]) {
+    const band = T.x.map((x, i) => `${X(x)},${Y(f(T.hi[i]))}`).join(" ") + " " + T.x.slice().reverse().map((x, i) => `${X(x)},${Y(f(T.lo[T.x.length - 1 - i]))}`).join(" ");
+    el("polygon", { points: band, fill: css("--N-soft") }, s);
+    el("polyline", { points: T.x.map((x, i) => `${X(x)},${Y(f(T.centro[i]))}`).join(" "), fill: "none", stroke: css(cor), "stroke-opacity": .55, "stroke-width": 1.5, "stroke-dasharray": "5 4", "stroke-linejoin": "round" }, s);
+  }
   return true;
 }
+function drawFinal(s, E, X, Y, w) {
+  const p = E.proj, xf = X(100), aCima = p.A >= 50;
+  for (const [cor, v, lo, hi, nome, cima, dx] of [["--A", p.A, p.A_ic90[0], p.A_ic90[1], "Flávio", aCima, -4], ["--B", 100 - p.A, 100 - p.A_ic90[1], 100 - p.A_ic90[0], "Lula", !aCima, 4]]) {
+    el("line", { x1: xf + dx, x2: xf + dx, y1: Y(hi), y2: Y(lo), stroke: css(cor), "stroke-width": 3, "stroke-linecap": "round" }, s);
+    el("circle", { cx: xf + dx, cy: Y(v), r: 6, fill: css(cor), stroke: css("--surface"), "stroke-width": 2 }, s);
+    el("text", { x: xf - 10, y: cima ? Y(hi) - 8 : Y(lo) + 16, "text-anchor": "end", class: "lbl", "font-weight": "600" }, s).textContent = `final: ${nome} ${pct(v, 2)}`;
+  }
+}
+
+// ------------------------------------------------- caixa da diferença
+function caixaDiferenca(E) {
+  const p = E.proj, d = 2 * p.A - 100, dlo = 2 * p.A_ic90[0] - 100, dhi = 2 * p.A_ic90[1] - 100, V = p.validos_proj;
+  const lider = d >= 0 ? "Flávio" : "Lula", ad = Math.abs(d), box = $("#diffBox");
+  box.style.background = css(d >= 0 ? "--A-soft" : "--B-soft");
+  const lado = x => x >= 0 ? "Flávio" : "Lula";
+  const ic = (dlo > 0 || dhi < 0)
+    ? `IC 90%: ${lider} +${f1(Math.min(Math.abs(dlo), Math.abs(dhi)))} a +${f1(Math.max(Math.abs(dlo), Math.abs(dhi)))} p.p. (${votosAbs(Math.min(Math.abs(dlo), Math.abs(dhi)) / 100 * V)} a ${votosAbs(Math.max(Math.abs(dlo), Math.abs(dhi)) / 100 * V)} votos)`
+    : `IC 90%: de ${lado(dlo)} +${f1(Math.abs(dlo))} p.p. (${votosAbs(Math.abs(dlo) / 100 * V)} votos) a ${lado(dhi)} +${f1(Math.abs(dhi))} p.p. (${votosAbs(Math.abs(dhi) / 100 * V)} votos): o empate ainda está dentro do intervalo`;
+  let parc = "Parcial do TSE: sem votos apurados ainda.";
+  if (E.tse.parcial_A != null && E.tse.votos_apurados) {
+    const dp = 2 * E.tse.parcial_A - 100, dv = dp / 100 * E.tse.votos_apurados;
+    parc = `Agora na parcial: ${dp >= 0 ? "Flávio" : "Lula"} +${f2(Math.abs(dp))} p.p. · ${dv >= 0 ? "Flávio" : "Lula"} +${votosAbs(Math.abs(dv))} votos`;
+  }
+  box.innerHTML = `<div class="k">Diferença projetada no resultado final</div>
+    <div class="diffrow"><span class="mid">${lider} +${f2(ad)} p.p.</span><span class="mid">${lider} +${votosAbs(ad / 100 * V)} votos</span></div>
+    <div class="note">${ic}. Base: ${f1(V / 1e6).replace(",0", "")} milhões de votos válidos projetados.</div>
+    <div class="note">${parc}</div>`;
+}
+function votosAbs(v) { return v >= 1e6 ? f2(v / 1e6) + " milhões" : v >= 1e3 ? Math.round(v / 1e3).toLocaleString("pt-BR") + " mil" : Math.round(v).toLocaleString("pt-BR"); }
 
 // ------------------------------------------------- gráfico: histórico
 function chartHist(E) {
   const H = E.historico || [];
-  const [s, w] = svgIn("#chHist", 280);
-  const m = { l: 40, r: 16, t: 10, b: 28 }, iw = w - m.l - m.r, ih = 280 - m.t - m.b;
+  const [s, w] = svgIn("#chHist", 300);
+  const m = { l: 40, r: 22, t: 12, b: 28 }, iw = w - m.l - m.r, ih = 300 - m.t - m.b;
   const TT = E.trajetoria && E.trajetoria.x && E.tse.pct_secoes >= MIN_TRAJ ? E.trajetoria : { lo: [], hi: [] };
   const vals = H.flatMap(h => [h.lo, h.hi, h.parcial_A]).concat(TT.lo, TT.hi, [E.proj.A_ic90[0], E.proj.A_ic90[1]]).filter(v => v != null);
-  const lo = Math.floor(Math.min(45, ...vals)), hi = Math.ceil(Math.max(55, ...vals));
+  const meia = Math.max(6, Math.ceil(Math.max(...vals.map(v => Math.abs(v - 50)), 0) + 1));
+  const lo = 50 - meia, hi = 50 + meia;
   const X = v => m.l + iw * v / 100, Y = v => m.t + ih * (hi - v) / (hi - lo);
-  ticks(lo, hi, 5).forEach(v => { el("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v), stroke: css(v === 50 ? "--axis" : "--grid"), "stroke-width": v === 50 ? 1.5 : 1 }, s);
+  ticks(lo, hi, 6).forEach(v => { el("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v), stroke: css(v === 50 ? "--axis" : "--grid"), "stroke-width": v === 50 ? 1.5 : 1 }, s);
     el("text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end" }, s).textContent = v + "%"; });
   [0, 20, 40, 60, 80, 100].forEach(v => el("text", { x: X(v), y: m.t + ih + 18, "text-anchor": "middle" }, s).textContent = v + "%");
-  if (!H.length) { el("text", { x: m.l + iw / 2, y: m.t + ih / 2, "text-anchor": "middle", class: "lbl" }, s).textContent = "Aguardando as primeiras urnas (ou aperte Ver simulação). A curva projetada aparece a partir de 3% das seções."; return; }
-  const band = H.map(h => `${X(h.pct_secoes)},${Y(h.hi)}`).join(" ") + " " + H.slice().reverse().map(h => `${X(h.pct_secoes)},${Y(h.lo)}`).join(" ");
-  el("polygon", { points: band, fill: css("--A-soft") }, s);
-  const par = H.filter(h => h.parcial_A != null);
-  el("polyline", { points: par.map(h => `${X(h.pct_secoes)},${Y(h.parcial_A)}`).join(" "), fill: "none", stroke: css("--neutral"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
-  el("polyline", { points: H.map(h => `${X(h.pct_secoes)},${Y(h.proj_A)}`).join(" "), fill: "none", stroke: css("--A"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
-  const temTraj = drawTraj(s, E, X, Y, m, iw, ih);
+  if (!H.length) {
+    el("text", { x: m.l + iw / 2, y: m.t + ih / 2 - 10, "text-anchor": "middle", class: "lbl" }, s).textContent = "Aguardando as primeiras urnas (ou aperte Ver simulação).";
+    el("text", { x: m.l + iw / 2, y: m.t + ih / 2 + 8, "text-anchor": "middle", class: "lbl" }, s).textContent = "A curva projetada aparece a partir de 3% das seções.";
+    drawFinal(s, E, X, Y, w); return;
+  }
+  for (const [cor, soft, f] of [["--A", "--A-soft", v => v], ["--B", "--B-soft", lulaDe]]) {
+    const band = H.map(h => `${X(h.pct_secoes)},${Y(f(h.hi))}`).join(" ") + " " + H.slice().reverse().map(h => `${X(h.pct_secoes)},${Y(f(h.lo))}`).join(" ");
+    el("polygon", { points: band, fill: css(soft) }, s);
+    const par = H.filter(h => h.parcial_A != null);
+    el("polyline", { points: par.map(h => `${X(h.pct_secoes)},${Y(f(h.parcial_A))}`).join(" "), fill: "none", stroke: css(cor), "stroke-opacity": .55, "stroke-width": 1.5, "stroke-linejoin": "round" }, s);
+  }
+  drawTraj(s, E, X, Y);
+  for (const [cor, f] of [["--A", v => v], ["--B", lulaDe]])
+    el("polyline", { points: H.map(h => `${X(h.pct_secoes)},${Y(f(h.proj_A))}`).join(" "), fill: "none", stroke: css(cor), "stroke-width": 2.5, "stroke-linejoin": "round" }, s);
+  drawFinal(s, E, X, Y, w);
   const u = H[H.length - 1];
-  el("circle", { cx: X(u.pct_secoes), cy: Y(u.proj_A), r: 4, fill: css("--A"), stroke: css("--surface"), "stroke-width": 2 }, s);
-  el("text", { x: Math.min(X(u.pct_secoes) + 8, w - 46), y: Y(u.proj_A) - 8, class: "lbl" }, s).textContent = pct(u.proj_A, 2);
+  for (const [cor, v, dy] of [["--A", u.proj_A, u.proj_A >= 50 ? -9 : 17], ["--B", 100 - u.proj_A, u.proj_A >= 50 ? 17 : -9]]) {
+    el("circle", { cx: X(u.pct_secoes), cy: Y(v), r: 4, fill: css(cor), stroke: css("--surface"), "stroke-width": 2 }, s);
+    if (u.pct_secoes < 88) el("text", { x: X(u.pct_secoes) + 8, y: Y(v) + dy, class: "lbl" }, s).textContent = pct(v, 2);
+  }
   const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" }, s);
   const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, s);
   hit.addEventListener("mousemove", ev => { const r = s.getBoundingClientRect(); const xv = (ev.clientX - r.left - m.l) / iw * 100;
     let best = H[0]; H.forEach(h => { if (Math.abs(h.pct_secoes - xv) < Math.abs(best.pct_secoes - xv)) best = h; });
     cross.setAttribute("x1", X(best.pct_secoes)); cross.setAttribute("x2", X(best.pct_secoes)); cross.setAttribute("visibility", "visible");
-    showTip(ev, `<b>${esc(best.hora)}</b> · ${pct(best.pct_secoes, 2)} das seções<br>Projeção Flávio: <b>${pct(best.proj_A, 2)}</b> (IC90 ${f1(best.lo)}–${f1(best.hi)})<br>Parcial TSE: ${pct(best.parcial_A, 2)}<br>P(Flávio vence): ${pct(100 * best.prob_A)}`); });
+    showTip(ev, `<b>${esc(best.hora)}</b> · ${pct(best.pct_secoes, 2)} das seções<br>Projeção: <b>Flávio ${pct(best.proj_A, 2)}</b> × <b>Lula ${pct(100 - best.proj_A, 2)}</b><br>Diferença projetada: ${best.proj_A >= 50 ? "Flávio" : "Lula"} +${f2(Math.abs(2 * best.proj_A - 100))} p.p.<br>Parcial TSE: Flávio ${pct(best.parcial_A, 2)} × Lula ${pct(lulaDe(best.parcial_A), 2)}<br>P(Flávio vence): ${pct(100 * best.prob_A)}`); });
   hit.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
 }
 
@@ -437,6 +479,7 @@ function renderApuracao() {
   if (!demo && E.erro) av.push(`Última coleta falhou: ${esc(E.erro)}. O painel mantém o último dado bom.`);
   if (E.tse.pct_secoes > 0 && E.tse.pct_secoes < 2) av.push("Menos de 2% das seções: a projeção ainda depende bastante das premissas.");
   $("#banner").hidden = !av.length; $("#banner").innerHTML = av.join("<br>");
+  caixaDiferenca(E);
   chartHist(E);
   desenharMapa(E);
   barrasFalta(E);
