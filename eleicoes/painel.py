@@ -286,6 +286,8 @@ class Estado:
                     "peso": x.validos_proj.sum()}), include_groups=False)
                 g["peso"] = 100 * g.peso / g.peso.sum()
                 g["desvio_pp"] = g.proj_A - g.base_A
+                if chave == "uf":
+                    g["prob_A"] = [res.get("prob_A_uf", {}).get(u) for u in g.index]
                 return [{"nome": k, **v} for k, v in g.round(3).to_dict("index").items()]
 
             com = d[d.pi > 0].copy()

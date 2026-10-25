@@ -296,6 +296,12 @@ class Modelo:
             d["A_proj_votos"] = A_obs + (resto * share).mean(axis=1)
             res["municipios"] = d
             res["sims_A"] = pA
+            # chance de A vencer em cada UF, nas mesmas simulações
+            ufs, inv = np.unique(self.uf, return_inverse=True)
+            Au = np.zeros((len(ufs), n_sim)); Vu = np.zeros((len(ufs), n_sim))
+            np.add.at(Au, inv, A_obs[:, None] + resto * share)
+            np.add.at(Vu, inv, (A_obs + B_obs)[:, None] + resto)
+            res["prob_A_uf"] = dict(zip(ufs, (Au / np.maximum(Vu, 1) > 0.5).mean(axis=1)))
         return res
 
     def coeficientes(self):

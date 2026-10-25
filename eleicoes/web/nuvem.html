@@ -157,8 +157,9 @@ input[type=number] { font: inherit; width: 66px; padding: 4px 6px; border: 1px s
       <div class="note" id="mapaMsg">Carregando o mapa…</div>
     </div>
     <div class="card">
-      <h2>Apuração por estado: onde ainda faltam votos</h2>
-      <div class="legend"><span><span class="sw" style="background:var(--m3)"></span>% do eleitorado já apurado</span><span>à direita: votos válidos que ainda faltam (estimativa do modelo)</span></div>
+      <h2>Apuração por estado: onde faltam votos e quem deve vencer</h2>
+      <div class="legend"><span><span class="sw" style="background:var(--m3)"></span>% do eleitorado já apurado</span><span>depois: votos válidos que ainda faltam</span><span><span class="sw" style="background:var(--A)"></span><span class="sw" style="background:var(--B)"></span>previsão de vencedor no estado (% projetado · chance)</span></div>
+      <div class="note" id="faltaResumo" style="margin-bottom:6px"></div>
       <div class="chart" id="chFalta"></div>
     </div>
   </div>
@@ -526,7 +527,7 @@ function renderApuracao() {
   const cols = [["", r => r.nome], ["Peso", r => pct(r.peso)], ["Apurado", r => pct(r.apurado, 0)], ["Base 1ºT", r => pct(r.base_A)],
     ["Flávio proj.", r => `<b>${pct(r.proj_A)}</b>`], ["Desvio p.p.", r => sgn(r.desvio_pp, 2)]];
   table("#tbReg", cols, E.regioes.slice().sort((a, b) => b.peso - a.peso));
-  table("#tbUF", cols, E.ufs.slice().sort((a, b) => b.peso - a.peso));
+  table("#tbUF", cols.concat([["Previsão", r => { const v = vencedorUF(r); return v ? `<span class="sw" style="background:var(${v.cor})"></span> ${v.nome}${v.prob != null ? " · " + pct(100 * v.prob, 0) : ""}` : "–"; }]]), E.ufs.slice().sort((a, b) => b.peso - a.peso));
   const mc = [["Município", r => esc(r.municipio)], ["Apurado", r => pct(r.apurado, 0)], ["Base", r => pct(r.base_A)], ["Proj.", r => pct(r.proj_A)], ["Desvio", r => sgn(r.desvio_pp, 1)]];
   table("#tbMA", mc, E.mais_A || [], "sem municípios apurados"); table("#tbMB", mc, E.mais_B || [], "sem municípios apurados");
 }
@@ -581,17 +582,36 @@ function mapaHover(ev) {
   hideTip();
 }
 const votos = v => v >= 1e6 ? f1(v / 1e6) + " mi" : Math.round(v / 1e3).toLocaleString("pt-BR") + " mil";
+function vencedorUF(r) {
+  if (r.proj_A == null) return null;
+  const A = r.proj_A >= 50, pr = r.prob_A == null ? null : (A ? r.prob_A : 1 - r.prob_A);
+  return { nome: A ? "Flávio" : "Lula", pct: A ? r.proj_A : 100 - r.proj_A, prob: pr, cor: A ? "--A" : "--B", soft: A ? "--A-soft" : "--B-soft",
+    firme: pr != null && pr >= 0.9, indef: pr != null && pr < 0.75 };
+}
 function barrasFalta(E) {
   const rows = E.ufs.map(r => ({ ...r, nome: r.nome === "ZZ" ? "Exterior" : r.nome, restante: r.restante ?? r.peso / 100 * E.proj.validos_proj * (1 - r.apurado / 100) }))
     .sort((a, b) => b.restante - a.restante);
-  const rh = 21, m = { l: 66, r: 150, t: 4, b: 6 }, h = m.t + m.b + rows.length * rh; const [s, w] = svgIn("#chFalta", h); const iw = w - m.l - m.r;
+  const box = $("#chFalta"); const estreito = box.clientWidth < 520;
+  const rh = 23, m = { l: 66, r: estreito ? 210 : 290, t: 4, b: 6 }, h = m.t + m.b + rows.length * rh; const [s, w] = svgIn("#chFalta", h); const iw = Math.max(w - m.l - m.r, 40);
   const totalFalta = rows.reduce((a, r) => a + r.restante, 0);
-  rows.forEach((r, i) => { const y = m.t + i * rh + 3, bh = rh - 7;
+  const xc = m.l + iw + (estreito ? 92 : 132);
+  rows.forEach((r, i) => { const y = m.t + i * rh + 4, bh = rh - 9, v = vencedorUF(r);
     el("text", { x: m.l - 8, y: y + bh / 2 + 4, "text-anchor": "end", class: "lbl" }, s).textContent = r.nome;
     el("rect", { x: m.l, y, width: iw, height: bh, rx: 3, fill: css("--m0") }, s);
     if (r.apurado > 0) el("rect", { x: m.l, y, width: Math.max(iw * r.apurado / 100, 2), height: bh, rx: 3, fill: css("--m3") }, s);
-    el("text", { x: m.l + iw + 6, y: y + bh / 2 + 4, class: "lbl" }, s).textContent = `${pct(r.apurado, 0)} · faltam ${votos(r.restante)}`;
-    hover(el("rect", { x: 0, y: y - 3, width: w, height: rh, fill: "transparent" }, s), () => `<b>${r.nome}</b><br>Apurado: ${pct(r.apurado, 1)} do eleitorado<br>Faltam ≈ ${votos(r.restante)} votos válidos (${pct(100 * r.restante / Math.max(totalFalta, 1), 1)} do que falta no país)<br>Peso no total: ${pct(r.peso)} · projeção Flávio ${pct(r.proj_A)}`); });
+    el("text", { x: m.l + iw + 6, y: y + bh / 2 + 4, class: "lbl" }, s).textContent = estreito ? `${pct(r.apurado, 0)} · ${votos(r.restante)}` : `${pct(r.apurado, 0)} · faltam ${votos(r.restante)}`;
+    if (v) {
+      const cw = w - xc - 2;
+      el("rect", { x: xc, y: y - 2, width: cw, height: bh + 4, rx: 4, fill: css(v.firme ? v.cor : v.soft) }, s);
+      const t = el("text", { x: xc + 6, y: y + bh / 2 + 4, class: "lbl", "font-weight": "600" }, s);
+      t.textContent = (v.indef ? "? " : "") + `${v.nome} ${f1(v.pct)}%` + (v.prob != null ? (estreito ? "" : ` · ${pct(100 * v.prob, 0)}`) : "");
+      if (v.firme) t.setAttribute("style", "fill:#fff");
+    }
+    hover(el("rect", { x: 0, y: y - 4, width: w, height: rh, fill: "transparent" }, s), () => `<b>${r.nome}</b><br>Apurado: ${pct(r.apurado, 1)} do eleitorado<br>Faltam ≈ ${votos(r.restante)} votos válidos (${pct(100 * r.restante / Math.max(totalFalta, 1), 1)} do que falta no país)<br>Peso no total: ${pct(r.peso)}` +
+      (v ? `<br><b>Previsão: ${v.nome} vence</b> com ${pct(v.pct, 1)} dos válidos` + (v.prob != null ? ` · chance ${pct(100 * v.prob, 0)}` : "") : "")); });
+  const vs = rows.filter(r => r.nome !== "Exterior").map(vencedorUF).filter(Boolean);
+  const nF = vs.filter(v => v.nome === "Flávio" && !v.indef).length, nL = vs.filter(v => v.nome === "Lula" && !v.indef).length, nI = vs.filter(v => v.indef).length;
+  $("#faltaResumo").innerHTML = `Previsão por estado: <b>Flávio vence em ${nF}</b>, <b>Lula em ${nL}</b>` + (nI ? `, ${nI} indefinido${nI > 1 ? "s" : ""} (chance do favorito abaixo de 75%, marcados com ?)` : "") + ". Cor cheia = chance acima de 90%.";
 }
 carregarMapa();
 
