@@ -7,7 +7,9 @@ os números devem ser conferidos no registro do TSE (PesqEle) quando usados
 para algo além de referência.
 
 Pesquisas que não estejam na Wikipédia podem ser incluídas à mão em
-data/pesquisas/manuais_2t.csv (mesmas colunas de pesquisas_2t.csv).
+data/pesquisas/manuais_2t.csv (mesmas colunas de pesquisas_2t.csv, mais
+"fonte"); uma linha manual com o mesmo instituto e datas de campo de uma
+linha da Wikipédia a substitui.
 
 Uso: python -m eleicoes.pesquisas     # atualiza data/pesquisas/*.csv
 """
@@ -162,10 +164,14 @@ def carregar():
     if man.exists():
         m = pd.read_csv(man, parse_dates=["inicio", "fim"])
         if len(m):
+            # uma linha manual substitui a da Wikipédia com o mesmo instituto e
+            # datas de campo (correção); se não houver, é acrescentada
             m["divulgada"] = m.lula.notna() & m.flavio.notna()
             m["flavio_validos"] = 100 * m.flavio / (m.flavio + m.lula)
-            m["instituto"] = m.instituto + " (manual)"
-            p2 = pd.concat([p2, m], ignore_index=True)
+            chave = ["instituto", "inicio", "fim"]
+            p2 = p2.merge(m[chave], on=chave, how="left", indicator=True)
+            p2 = p2[p2._merge == "left_only"].drop(columns="_merge")
+            p2 = pd.concat([p2, m.drop(columns=["fonte"], errors="ignore")], ignore_index=True)
     return p2, p1
 
 
