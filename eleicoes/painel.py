@@ -271,7 +271,8 @@ class Estado:
             d = d.reset_index()
             d["base_votos"] = d.validos_proj * d.base_1t_A / 100
             obs = (self.snapshot[["A", "B"]].astype(float) if self.snapshot is not None and len(self.snapshot)
-                   else pd.DataFrame(columns=["A", "B"], dtype=float))
+                   else pd.DataFrame({"A": [], "B": []}, dtype=float,
+                                     index=pd.MultiIndex.from_tuples([], names=["uf", "cd_mun"])))
             d = d.merge(obs.rename(columns={"A": "A_obs", "B": "B_obs"}), left_on=["uf", "cd_mun"], right_index=True, how="left")
             d[["A_obs", "B_obs"]] = d[["A_obs", "B_obs"]].fillna(0.0)
             d["V_obs"] = d.A_obs + d.B_obs
